@@ -1,0 +1,130 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+import { UserType } from './user.schema';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsEmpty,
+  IsEmail,
+} from 'class-validator';
+
+export class UpdateUserDto {
+  @IsEnum(UserType, {
+    message: 'Enter corect userType : oersonal/organisation',
+  })
+  @IsOptional()
+  accountType: UserType;
+
+  @IsEmail()
+  @IsOptional()
+  readonly email: string;
+
+  @IsString()
+  @IsEmpty({ message: 'password must been empty' })
+  readonly password: string;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'agreeTerms must been empty' })
+  readonly agreeTerms: boolean;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'active must been empty' })
+  readonly active: string;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'verified must been empty' })
+  readonly verified: boolean;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'vip must been empty' })
+  readonly vip: boolean;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'warning must been empty' })
+  readonly warning: boolean;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'isAdmin must been empty' })
+  readonly isAdmin: boolean;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'premium must been empty' })
+  readonly premium: boolean;
+
+  @IsBoolean()
+  @IsEmpty({ message: 'status must been empty' })
+  readonly status: boolean;
+
+  @IsString()
+  @IsOptional()
+  readonly description: string;
+
+  @IsString()
+  @IsOptional()
+  readonly cityId: string;
+
+  @IsString()
+  @IsOptional()
+  readonly countryId: string;
+
+  @IsString()
+  @IsOptional()
+  readonly language: string;
+
+  @IsString()
+  @IsOptional()
+  readonly phone: string;
+
+  @IsString()
+  @IsOptional()
+  readonly firstName: string;
+
+  @IsString()
+  @IsOptional()
+  readonly lastName: string;
+
+  @IsString()
+  @IsOptional()
+  readonly name: string;
+
+  @IsString()
+  @IsOptional()
+  readonly pictureUrl: string;
+
+  @IsString()
+  @IsOptional()
+  readonly coverUrl: string;
+
+  @IsString()
+  @IsOptional()
+  readonly phone2: string;
+
+  @IsString()
+  @IsOptional()
+  readonly whatsapp: string;
+
+  @IsString()
+  @IsOptional()
+  readonly twitter: string;
+
+  @IsString()
+  @IsOptional()
+  readonly instagram: string;
+
+  @IsString()
+  @IsOptional()
+  readonly facebook: string;
+
+  @IsString()
+  @IsOptional()
+  readonly webSite: string;
+
+  @IsString()
+  @IsOptional()
+  readonly linkedIn: string;
+
+  @IsString()
+  @IsOptional()
+  readonly address: string;
+}
