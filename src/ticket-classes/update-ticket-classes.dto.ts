@@ -1,6 +1,6 @@
 import { IsString, IsEmpty, IsOptional } from 'class-validator';
 
-export class CreateUserDto {
+export class UpdateTicketClassesDto {
   @IsEmpty({ message: 'You cannot pass user id' })
   readonly id: string;
 

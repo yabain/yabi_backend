@@ -2,6 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { User } from '../user/user.schema';
 import mongoose from 'mongoose';
 import { Document } from 'mongoose';
+import { City } from 'src/city/city.schema';
+import { Country } from 'src/country/country.schema';
+import { EventCategories } from 'src/event-categories/event-categories.schema';
 
 export enum EventType {
   PUBLIC = 'public',
@@ -18,6 +21,15 @@ export interface TicketClass {
 export class Event extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   autor: User;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'City' })
+  cityId: City;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Country' })
+  countryId: Country;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'EventCategories' })
+  categoryId: EventCategories;
 
   @Prop()
   title: string;
@@ -52,15 +64,6 @@ export class Event extends Document {
   @Prop()
   paid: boolean;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'City' })
-  cityId: string;
-
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Country' })
-  countryId: string;
-
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Category' })
-  categoryId: string;
-
   @Prop()
   location: string;
 
@@ -71,7 +74,7 @@ export class Event extends Document {
   phone: string;
 
   @Prop()
-  phone2: number;
+  phone2: string;
 
   @Prop()
   onlineMeet: string;

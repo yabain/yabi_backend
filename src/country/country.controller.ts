@@ -23,7 +23,7 @@ export class CountryController {
 
   @Get()
   async getAllCountries(@Query() query: ExpressQuery): Promise<Country[]> {
-    console.log('Getting all countries');
+    // console.log('Getting all countries');
     return this.countryService.findAll(query);
   }
 
@@ -31,7 +31,7 @@ export class CountryController {
   @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
   @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateUserDto`
   async createCountry(@Body() country: CreateCountryDto): Promise<Country> {
-    console.log('Country creation');
+    // console.log('Country creation');
     return this.countryService.creatCountry(country);
   }
 
@@ -39,7 +39,7 @@ export class CountryController {
   @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
   @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateUserDto`
   async deleteCountry(@Param('id') countryId: string): Promise<any> {
-    console.log('Country deletion');
+    // console.log('Country deletion');
     return this.countryService.deleteCountry(countryId);
   }
 
@@ -50,13 +50,13 @@ export class CountryController {
     @Param('id') countryId: string,
     @Body() countryData: CreateCountryDto,
   ): Promise<any> {
-    console.log('Country deletion');
+    // console.log('Country deletion');
     return this.countryService.updateCountry(countryId, countryData);
   }
 
   @Get(':id')
   async getCountry(@Param('id') countryId: string): Promise<any> {
-    console.log('Getting one country');
+    // console.log('Getting one country');
     return this.countryService.findById(countryId);
   }
 }

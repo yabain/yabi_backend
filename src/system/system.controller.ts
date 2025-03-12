@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Controller, Get } from '@nestjs/common';
 import { System } from './system.schema';
 import { SystemService } from './system.service';
@@ -8,7 +9,6 @@ export class SystemController {
 
   @Get()
   async getData(): Promise<System[]> {
-    console.log('getting system data');
     return this.systemService.getData();
   }
 }

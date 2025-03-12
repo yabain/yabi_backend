@@ -39,9 +39,9 @@ export class CountryService {
 
   async creatCountry(country: CreateCountryDto): Promise<Country> {
     try {
-      console.log('Creating country with data:', country); // Log les données reçues
+      // console.log('Creating country with data:', country); // Log les données reçues
       const res = await this.countryModel.create(country);
-      console.log('Country created successfully:', res); // Log le résultat de la création
+      // console.log('Country created successfully:', res); // Log le résultat de la création
       return res;
     } catch (error) {
       if (error.code === 11000) {

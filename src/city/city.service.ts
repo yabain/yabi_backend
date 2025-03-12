@@ -39,9 +39,9 @@ export class CityService {
 
   async creatCity(city: CreateCityDto): Promise<City> {
     try {
-      console.log('Creating city with data:', city); // Log les données reçues
+      // console.log('Creating city with data:', city); // Log les données reçues
       const res = await this.cityModel.create(city);
-      console.log('City created successfully:', res); // Log le résultat de la création
+      // console.log('City created successfully:', res); // Log le résultat de la création
       return res;
     } catch (error) {
       if (error.code === 11000) {
@@ -550,9 +550,9 @@ export class CityService {
     for (const city of cities) {
       try {
         await this.creatCity(city);
-        console.log('importation de : ', city.name);
+        // console.log('importation de : ', city.name);
       } catch (error) {
-        console.log('Ville existante : ', city.name);
+        // console.log('Ville existante : ', city.name);
       }
     }
   }

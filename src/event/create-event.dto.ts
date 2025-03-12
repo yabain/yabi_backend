@@ -9,7 +9,6 @@ import {
   IsEnum,
   IsBoolean,
   IsEmpty,
-  IsNumber,
   IsDate,
 } from 'class-validator';
 
@@ -57,7 +56,7 @@ export class CreateEventDto {
 
   @IsBoolean()
   @IsNotEmpty()
-  readonly status: number;
+  readonly status: boolean;
 
   @IsBoolean()
   @IsNotEmpty()
@@ -87,9 +86,9 @@ export class CreateEventDto {
   @IsNotEmpty()
   readonly phone: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  readonly phone2: number;
+  readonly phone2: string;
 
   @IsString()
   @IsOptional()

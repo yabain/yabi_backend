@@ -25,7 +25,7 @@ export class EventCategoriesController {
   async getAllCategories(
     @Query() query: ExpressQuery,
   ): Promise<EventCategories[]> {
-    console.log('Getting all categories');
+    // console.log('Getting all categories');
     return this.categoryService.findAll(query);
   }
 
@@ -35,7 +35,7 @@ export class EventCategoriesController {
   async createCategory(
     @Body() category: CreateCategoryDto,
   ): Promise<EventCategories> {
-    console.log('Category creation');
+    // console.log('Category creation');
     return this.categoryService.creatCategory(category);
   }
 
@@ -43,7 +43,7 @@ export class EventCategoriesController {
   @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
   @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateUserDto`
   async deleteCategory(@Param('id') categoryId: string): Promise<any> {
-    console.log('Category deletion');
+    // console.log('Category deletion');
     return this.categoryService.deleteCategory(categoryId);
   }
 
@@ -54,19 +54,27 @@ export class EventCategoriesController {
     @Param('id') categoryId: string,
     @Body() categoryData: CreateCategoryDto,
   ): Promise<any> {
-    console.log('Category deletion');
+    // console.log('Category deletion');
     return this.categoryService.updateCategory(categoryId, categoryData);
   }
 
   @Get(':id')
   async getCategory(@Param('id') categoryId: string): Promise<any> {
-    console.log('Getting one category');
+    // console.log('Getting one category');
     return this.categoryService.findById(categoryId);
   }
 
   @Post('import')
   async importCategory(): Promise<any> {
-    console.log('Import categories');
+    // console.log('Import categories');
     return this.categoryService.importCategories();
+  }
+
+  @Get('eventslist/:id')
+  async getUpcommingEventsOfCategory(
+    @Param('id') categoryId: string,
+    @Query() query: ExpressQuery,
+  ): Promise<any> {
+    return this.categoryService.getUpcommingEventsOfCategory(categoryId, query);
   }
 }

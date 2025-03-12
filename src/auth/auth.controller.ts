@@ -9,7 +9,7 @@ export class AuthController {
 
   @Post('/signup')
   signUp(@Body() userData: CreateUserDto): Promise<{ token: string }> {
-    console.log('SignUp of new user');
+    // console.log('SignUp of new user');
     return this.authService.signUp(userData);
   }
 

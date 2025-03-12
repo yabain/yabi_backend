@@ -11,6 +11,11 @@ import { CityModule } from './city/city.module';
 import { SystemModule } from './system/system.module';
 import { EventCategoriesModule } from './event-categories/event-categories.module';
 import { TicketClassesModule } from './ticket-classes/ticket-classes.module';
+import { FavoriteModule } from './favorite/favorite.module';
+import { FollowModule } from './follow/follow.module';
+import { TicketModule } from './ticket/ticket.module';
+import { AheadModule } from './ahead/ahead.module';
+// import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
   imports: [
@@ -29,6 +34,11 @@ import { TicketClassesModule } from './ticket-classes/ticket-classes.module';
     SystemModule,
     EventCategoriesModule,
     TicketClassesModule,
+    FavoriteModule,
+    FollowModule,
+    TicketModule,
+    AheadModule,
+    // GatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],

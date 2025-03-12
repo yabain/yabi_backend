@@ -7,11 +7,12 @@ import {
   IsBoolean,
   IsEmpty,
   IsNumber,
+  IsNotEmpty,
   // IsDate,
 } from 'class-validator';
 
 export class UpdateEventDto {
-  @IsEmpty({ message: 'You cannot pass user id' })
+  @IsNotEmpty()
   readonly autor: User;
 
   @IsEnum(EventType, {
@@ -20,8 +21,13 @@ export class UpdateEventDto {
   @IsOptional()
   type: EventType;
 
+  @IsEmpty({ message: 'You cannot pass user id' })
   @IsOptional()
   readonly ticketClasses: any;
+
+  @IsString()
+  @IsOptional()
+  title: string;
 
   @IsString()
   @IsOptional()
@@ -55,10 +61,12 @@ export class UpdateEventDto {
   @IsOptional()
   paid: boolean;
 
+  @IsEmpty({ message: 'You cannot pass city id' })
   @IsString()
   @IsOptional()
   cityId: string;
 
+  @IsEmpty({ message: 'You cannot pass country id' })
   @IsString()
   @IsOptional()
   countryId: string;
@@ -89,11 +97,11 @@ export class UpdateEventDto {
 
   @IsString()
   @IsOptional()
-  coverUrl: string;
+  cover: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  phone2: number;
+  phone2: string;
 
   @IsString()
   @IsOptional()

@@ -14,6 +14,9 @@ export class User extends Document {
   email: string;
 
   @Prop()
+  accountType: UserType;
+
+  @Prop()
   password: string;
 
   @Prop()
@@ -54,9 +57,6 @@ export class User extends Document {
 
   @Prop()
   description: string;
-
-  @Prop()
-  accountType: UserType;
 
   @Prop()
   cityId: string;
