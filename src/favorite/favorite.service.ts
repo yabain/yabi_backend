@@ -20,6 +20,13 @@ export class FavoriteService {
     private ticketClassesService: TicketClassesService,
   ) {}
 
+  /**
+   * Get all favorite events of a user with pagination.
+   * @param id - The ID of the user.
+   * @param query - Query parameters for pagination.
+   * @returns A list of favorite events with additional details.
+   * @throws NotFoundException if ticket classes are not found.
+   */
   async gestAllFavoritesEventOfUser(id: any, query: Query): Promise<Event[]> {
     const resPerPage = 10;
     const currentPage = Number(query.page) || 1;
@@ -30,6 +37,7 @@ export class FavoriteService {
       userId = new mongoose.Types.ObjectId(id);
     }
 
+    // Find favorite events for the user with pagination
     const favorites = await this.favoriteModel
       .find({ userId: userId })
       .limit(resPerPage)
@@ -37,17 +45,21 @@ export class FavoriteService {
 
     let events: any[] = [];
     for (const favorite of favorites) {
+      // Find event details and populate country and city data
       const event = await this.eventModel
         .findById(favorite.eventId)
         .populate('countryId')
         .populate('cityId');
 
+      // Find ticket classes for the event
       const ticketClasses = await this.ticketClassesService.findByEventId(
         favorite.eventId,
       );
       if (!ticketClasses) {
-        throw new NotFoundException('ticketClasses not found');
+        throw new NotFoundException('Ticket classes not found');
       }
+
+      // Enrich event data with additional details
       let eventData: any = { ...event };
       eventData = { ...eventData._doc };
       eventData.cityData = eventData.cityId;
@@ -59,7 +71,12 @@ export class FavoriteService {
     return events;
   }
 
-  // Check if event eId extist on favorites events of user id
+  /**
+   * Check if an event is in the favorites list of a user.
+   * @param eId - The ID of the event to check.
+   * @param id - The ID of the user.
+   * @returns A boolean indicating whether the event is in the user's favorites.
+   */
   async chekIfEventIsInFavorites(eId: any, id: any): Promise<boolean> {
     let userId: any = id;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -71,14 +88,19 @@ export class FavoriteService {
       eventId = new mongoose.Types.ObjectId(eId);
     }
 
+    // Find if the event is in the user's favorites
     const favorites = await this.favoriteModel
       .find({ eventId: eventId, userId: userId })
       .exec();
-    if (favorites.length > 0) return true;
-    else return false;
+    return favorites.length > 0;
   }
 
-  // Add event data data.eventId to favorite of current user data.userId
+  /**
+   * Add an event to the user's favorites.
+   * @param data - An object containing userId and eventId.
+   * @returns A boolean indicating success.
+   * @throws Error if userId or eventId is not a valid ObjectId.
+   */
   async addToFavorites(data: any): Promise<any> {
     let userId: mongoose.Types.ObjectId;
     if (mongoose.Types.ObjectId.isValid(data.userId)) {
@@ -94,6 +116,7 @@ export class FavoriteService {
       throw new Error('eventId is not a valid ObjectId');
     }
 
+    // Create a new favorite entry
     const follow = {
       userId: userId,
       eventId: eventId,
@@ -102,12 +125,18 @@ export class FavoriteService {
     const addData = await this.favoriteModel.create(follow);
 
     if (!addData) {
-      throw new Error('Favorit not fond');
+      throw new Error('Favorite not found');
     }
 
     return true;
   }
 
+  /**
+   * Remove an event from the user's favorites.
+   * @param data - An object containing userId and eventId.
+   * @returns A boolean indicating success.
+   * @throws Error if userId or eventId is not a valid ObjectId.
+   */
   async removeToFavorites(data: { userId: any; eventId: any }): Promise<any> {
     let userId: mongoose.Types.ObjectId;
     if (mongoose.Types.ObjectId.isValid(data.userId)) {
@@ -123,21 +152,25 @@ export class FavoriteService {
       throw new Error('eventId is not a valid ObjectId');
     }
 
+    // Define the filter to find the favorite entry
     const filter = {
       userId: userId,
       eventId: eventId,
     };
 
+    // Check if the favorite entry exists
     const favorites = await this.favoriteModel
       .find({ eventId: eventId, userId: userId })
       .exec();
     if (favorites.length > 0) {
-      // Supprimer le document correspondant
+      // Delete the favorite entry
       const result = await this.favoriteModel.findOneAndDelete(filter).exec();
       if (!result) {
-        throw new Error('Favorit not fond');
+        throw new Error('Favorite not found');
       }
       return true;
-    } else return false;
+    } else {
+      return false;
+    }
   }
 }

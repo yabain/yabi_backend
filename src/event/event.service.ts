@@ -34,6 +34,11 @@ export class EventService {
     private TicketService: TicketService,
   ) {}
 
+  /**
+   * Find all public events with optional keyword search and pagination.
+   * @param query - Query parameters for keyword search and pagination.
+   * @returns A list of public events.
+   */
   async findAll(query: Query): Promise<Event[]> {
     const resPerPage = 10;
     const currentPage = Number(query.page) || 1;
@@ -54,6 +59,13 @@ export class EventService {
     return events;
   }
 
+  /**
+   * Create a new event.
+   * @param event - The event data to create.
+   * @param req - The request object containing the authenticated user.
+   * @param files - The uploaded files (e.g., event cover image).
+   * @returns The created event.
+   */
   async creatEvent(
     event: CreateEventDto,
     req: any,
@@ -61,28 +73,42 @@ export class EventService {
   ): Promise<Event> {
     const userId = req.user._id;
 
+    // Generate URLs for the uploaded files
     const fileUrls = files.map((file) => {
       return `${req.protocol}://${req.get('host')}/assets/images/${file.filename}`;
     });
 
+    // Prepare event data with the user ID and cover image URL
     const eventData = {
       ...event,
       autor: userId,
       cover: fileUrls[0],
     };
+
+    // Create the event in the database
     const res = await this.eventModel.create(eventData);
+
+    // Create ticket classes for the event
     await this.ticketClassesService.creatTicketClass(
       event.ticketClasses,
       res._id,
     );
+
     return res;
   }
 
+  /**
+   * Find an event by ID and enrich it with additional data.
+   * @param eventId - The ID of the event to find.
+   * @returns The event details with additional data (e.g., author, country, city, ticket classes).
+   * @throws NotFoundException if the event, ticket classes, or author is not found.
+   */
   async findById(eventId: string): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new NotFoundException('Invalid user ID 0');
+      throw new NotFoundException('Invalid event ID');
     }
 
+    // Find the event and populate related data (city, country, category)
     const event: any = await this.eventModel
       .findById(eventId)
       .populate('cityId')
@@ -92,22 +118,23 @@ export class EventService {
       throw new NotFoundException('Event not found');
     }
 
+    // Find ticket classes for the event
     const ticketClasses =
       await this.ticketClassesService.findByEventId(eventId);
     if (!ticketClasses) {
-      throw new NotFoundException('ticketClasses not found');
+      throw new NotFoundException('Ticket classes not found');
     }
 
-    // Get author data with followers
+    // Get author data (excluding password)
     const userData: any = await this.userService.findById(event.autor);
     if (!userData) {
-      throw new NotFoundException('Autor not found');
+      throw new NotFoundException('Author not found');
     }
 
-    console.log('eventData: ', event);
+    // Enrich event data with additional details
     const eventData: any = { ...event._doc };
     const user: any = userData;
-    user.password = '';
+    user.password = ''; // Remove password for security
     eventData.autorData = user;
     eventData.countryData = eventData.countryId;
     eventData.cityData = eventData.city;
@@ -117,6 +144,13 @@ export class EventService {
     return eventData;
   }
 
+  /**
+   * Update an event by ID.
+   * @param eventId - The ID of the event to update.
+   * @param eventData - The updated event data.
+   * @returns The updated event.
+   * @throws NotFoundException if the event ID is invalid.
+   */
   async updateEvent(eventId: string, eventData: UpdateEventDto): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       throw new NotFoundException('Invalid event ID');
@@ -130,24 +164,38 @@ export class EventService {
     return event;
   }
 
+  /**
+   * Delete an event by ID.
+   * @param eventId - The ID of the event to delete.
+   * @returns The result of the deletion operation.
+   * @throws NotFoundException if the event ID is invalid.
+   */
   async deleteEvent(eventId: string): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new NotFoundException('Invalid categoryId');
+      throw new NotFoundException('Invalid event ID');
     }
     return await this.eventModel.findByIdAndDelete(eventId);
   }
 
+  /**
+   * Get the list of participants for a specific event.
+   * @param eventId - The ID of the event.
+   * @returns A list of participants.
+   * @throws NotFoundException if the event ID is invalid or the event is not found.
+   */
   async getParticipantsList(eventId: string): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new NotFoundException('Invalid user ID 1');
+      throw new NotFoundException('Invalid event ID');
     }
 
+    // Get all tickets for the event
     const ticketsList: any =
       await this.TicketService.getAllTicketsOfEvent(eventId);
     if (!ticketsList) {
       throw new NotFoundException('Event not found');
     }
 
+    // Remove duplicate participants based on user ID
     const uniqueData = Object.values(
       ticketsList.reduce((acc, obj) => {
         if (!acc[obj.userId]) {
@@ -157,6 +205,7 @@ export class EventService {
       }, {}),
     );
 
+    // Get user details for each participant
     let participants: any[] = [];
     for (const ticket of uniqueData as any[]) {
       const userId = new mongoose.Types.ObjectId(ticket.userId);
@@ -164,18 +213,29 @@ export class EventService {
       participants = [...participants, user];
     }
 
-    console.log('Liste des participants: ', participants);
     return participants;
   }
 
-  // find event by id withoud all another data (ex to use: metatags)
+  /**
+   * Find an event by ID without additional data (e.g., for metadata purposes).
+   * @param eventId - The ID of the event to find.
+   * @returns The event details.
+   * @throws NotFoundException if the event ID is invalid.
+   */
   async findEventById(eventId: string): Promise<Event | null> {
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new NotFoundException('Invalid user ID 2');
+      throw new NotFoundException('Invalid event ID');
     }
     return this.eventModel.findById(eventId).exec();
   }
 
+  /**
+   * Get public events of a specific user with pagination.
+   * @param userId - The ID of the user.
+   * @param query - Query parameters for pagination.
+   * @returns A list of public events.
+   * @throws NotFoundException if the user ID is invalid.
+   */
   async getProgressivePublicEventsOfUser(
     userId: any,
     query: Query,
@@ -195,6 +255,13 @@ export class EventService {
     return events;
   }
 
+  /**
+   * Get all events of a specific user with pagination and additional data.
+   * @param userId - The ID of the user.
+   * @param query - Query parameters for pagination.
+   * @returns A list of events with additional data (e.g., city, country, ticket classes).
+   * @throws NotFoundException if the user ID is invalid or no events are found.
+   */
   async getProgressiveAllEventsOfUser(
     userId: any,
     query: Query,
@@ -207,6 +274,7 @@ export class EventService {
       throw new NotFoundException('Invalid user ID');
     }
 
+    // Find events and populate related data (city, country)
     const eventList = await this.eventModel
       .find({ autor: userId })
       .populate('cityId')
@@ -220,13 +288,15 @@ export class EventService {
     if (eventList.length > 0) {
       let events: any = [];
       for (const eventItem of eventList) {
+        // Find ticket classes for the event
         const ticketClasses = await this.ticketClassesService.findByEventId(
           eventItem._id,
         );
         if (!ticketClasses) {
-          throw new NotFoundException('ticketClasses not found');
+          throw new NotFoundException('Ticket classes not found');
         }
 
+        // Enrich event data with additional details
         let eventData: any = { ...eventItem };
         eventData = eventData._doc;
         eventData.countryData = eventData.countryId;
@@ -237,6 +307,8 @@ export class EventService {
       }
 
       return events;
-    } else return eventList;
+    } else {
+      return eventList;
+    }
   }
 }

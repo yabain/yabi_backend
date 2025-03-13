@@ -16,6 +16,7 @@ import { FollowModule } from './follow/follow.module';
 import { TicketModule } from './ticket/ticket.module';
 import { AheadModule } from './ahead/ahead.module';
 // import { GatewayModule } from './gateway/gateway.module';
+import { RevokedTokenModule } from './revoked-token/revoked-token.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AheadModule } from './ahead/ahead.module';
     FollowModule,
     TicketModule,
     AheadModule,
+    RevokedTokenModule,
     // GatewayModule,
   ],
   controllers: [AppController],

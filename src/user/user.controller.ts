@@ -28,18 +28,19 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 
+// Configuration for Multer to handle file uploads
 export const multerConfig = {
   storage: diskStorage({
-    destination: './assets/images', // Dossier où les fichiers seront stockés
+    destination: './assets/images', // Directory where files will be stored
     filename: (req: any, file, callback) => {
-      const userId = req.user._id; // Récupérer l'ID de l'utilisateur depuis la requête
-      const fileExt = path.extname(file.originalname); // Récupérer l'extension du fichier
-      const fileName = `pictureFile_${userId}${fileExt}`; // Générer le nom du fichier
-      callback(null, fileName); // Retourner le nom du fichier
+      const userId = req.user._id; // Get user ID from the request
+      const fileExt = path.extname(file.originalname); // Get file extension
+      const fileName = `pictureFile_${userId}${fileExt}`; // Generate file name
+      callback(null, fileName); // Return the file name
     },
   }),
   limits: {
-    fileSize: 5 * 1024 * 1024, // Limite de 5 Mo
+    fileSize: 5 * 1024 * 1024, // Limit file size to 5 MB
   },
 };
 
@@ -47,34 +48,61 @@ export const multerConfig = {
 export class UserController {
   constructor(private userService: UserService) {}
 
+  /**
+   * Get all users with optional query parameters for filtering and pagination.
+   * @param query - Query parameters for filtering and pagination.
+   * @returns A list of users.
+   */
   @Get()
   async getAllUser(@Query() query: ExpressQuery): Promise<User[]> {
     return this.userService.searchByEmail(query);
   }
 
+  /**
+   * Get user data by ID.
+   * @param userId - The ID of the user to retrieve.
+   * @returns The user data.
+   */
   @Get('user-data/:id')
   async getUser(@Param('id') userId: string): Promise<any> {
     return this.userService.findById(userId);
   }
 
+  /**
+   * Create a new user.
+   * @param user - The user data to create.
+   * @returns The created user.
+   */
   @Post('new')
-  @UsePipes(ValidationPipe) // DTO Validation
+  @UsePipes(ValidationPipe) // Validate the incoming data using the CreateUserDto
   async createUser(@Body() user: CreateUserDto): Promise<User> {
     return this.userService.creatUser(user);
   }
 
+  /**
+   * Update the profile of the authenticated user.
+   * @param userData - The updated user data.
+   * @param req - The request object containing the authenticated user.
+   * @returns The updated user data.
+   */
   @Put('update-profile')
-  @UseGuards(AuthGuard())
-  @UsePipes(ValidationPipe)
+  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data using the UpdateUserDto
   async update(@Body() userData: UpdateUserDto, @Req() req): Promise<any> {
-    console.log('user data 00000: ', userData);
     return this.userService.updateUser(req.user._id, userData);
   }
 
+  /**
+   * Update the profile picture of the authenticated user.
+   * @param req - The request object containing the authenticated user.
+   * @param picture - The uploaded picture file.
+   * @returns The updated user data.
+   * @throws BadRequestException if no file is uploaded.
+   */
   @Put('picture')
-  @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfig))
-  @UseGuards(AuthGuard())
-  @UsePipes(ValidationPipe)
+  @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfig)) // Handle file uploads
+  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
   async updatePicture(
     @Req() req,
     @UploadedFiles() picture: Array<Express.Multer.File>,
@@ -82,16 +110,26 @@ export class UserController {
     if (!picture || picture.length === 0) {
       throw new BadRequestException('No file uploaded');
     }
-    console.log('fichier: ', picture);
+    console.log('file: ', picture);
     return this.userService.updateUserPicture(req, picture);
   }
 
+  /**
+   * Delete a user by ID.
+   * @param userId - The ID of the user to delete.
+   * @returns The result of the deletion operation.
+   */
   @Delete(':id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard()) // Protect the route with authentication
   async delete(@Param('id') userId: string): Promise<any> {
     return this.userService.deleteUser(userId);
   }
 
+  /**
+   * Search for users by name with optional query parameters for filtering and pagination.
+   * @param query - Query parameters for filtering and pagination.
+   * @returns A list of users matching the search criteria.
+   */
   @Get('research')
   async userResearch(@Query() query: ExpressQuery): Promise<any> {
     return this.userService.searchByName(query);

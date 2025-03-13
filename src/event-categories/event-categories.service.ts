@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
@@ -32,8 +31,13 @@ export class EventCategoriesService {
     private ticketClassesService: TicketClassesService,
   ) {}
 
+  /**
+   * Find all event categories with pagination and keyword search.
+   * @param query - Query parameters including keyword and page number.
+   * @returns A list of event categories.
+   */
   async findAll(query: Query): Promise<EventCategories[]> {
-    const resPerPage = 200;
+    const resPerPage = 20;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
 
@@ -45,6 +49,7 @@ export class EventCategoriesService {
           },
         }
       : {};
+
     const countries = await this.categoryModel
       .find({ ...keyword })
       .limit(resPerPage)
@@ -52,18 +57,30 @@ export class EventCategoriesService {
     return countries;
   }
 
+  /**
+   * Create a new event category.
+   * @param category - The category data to create.
+   * @returns The created event category.
+   * @throws ConflictException if the category name already exists.
+   */
   async creatCategory(category: CreateCategoryDto): Promise<EventCategories> {
     try {
       const res = await this.categoryModel.create(category);
       return res;
     } catch (error) {
       if (error.code === 11000) {
-        throw new ConflictException('This name tCategories already exists');
+        throw new ConflictException('This name of Categories already exists');
       }
-      throw error; // Propager les autres erreurs
+      throw error; // Propagate other errors
     }
   }
 
+  /**
+   * Find an event category by ID.
+   * @param categoryId - The ID of the category to find.
+   * @returns The found event category.
+   * @throws NotFoundException if the category ID is invalid or the category is not found.
+   */
   async findById(categoryId: string): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
       throw new NotFoundException('Invalid categoryId');
@@ -77,10 +94,26 @@ export class EventCategoriesService {
     return eventCategories;
   }
 
+  /**
+   * Delete an event category by ID.
+   * @param categoryId - The ID of the category to delete.
+   * @returns The deleted event category.
+   * @throws NotFoundException if the category ID is invalid.
+   */
   async deleteCategory(categoryId: string): Promise<any> {
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      throw new NotFoundException('Invalid categoryId');
+    }
     return await this.categoryModel.findByIdAndDelete(categoryId);
   }
 
+  /**
+   * Update an event category by ID.
+   * @param categoryId - The ID of the category to update.
+   * @param categoryData - The updated category data.
+   * @returns The updated event category.
+   * @throws NotFoundException if the category ID is invalid.
+   */
   async updateCategory(
     categoryId: string,
     categoryData: CreateCategoryDto,
@@ -100,6 +133,10 @@ export class EventCategoriesService {
     return user;
   }
 
+  /**
+   * Import predefined categories into the database.
+   * This method is used to seed the database with initial category data.
+   */
   async importCategories() {
     const categories = [
       {
@@ -182,30 +219,32 @@ export class EventCategoriesService {
         value: 'Culturel',
         varTranslate: 'cat.culture',
       },
-      // {
-      //   class: 'fundrasing',
-      //   cover: 'assets/imgs/pictures/cat_collecte.png',
-      //   icon: 'help-buoy-outline',
-      //   name: 'Collecte de fonds',
-      //   value: 'Collecte de fonds',
-      //   varTranslate: 'cat.fund',
-      // },
     ];
     for (const category of categories) {
       try {
         await this.creatCategory(category);
       } catch (error) {
-        console.log('Catégorie existante : ', category.name);
+        console.log('Existing category: ', category.name);
       }
     }
   }
 
+  /**
+   * Get upcoming events of a specific category with optional city filter.
+   * @param categoryId - The ID of the category to filter events.
+   * @param query - Query parameters including keyword, page number, and city ID.
+   * @returns A list of upcoming events for the specified category.
+   * @throws Error if the category ID or city ID is invalid.
+   * @throws NotFoundException if country, city, or ticket classes are not found.
+   */
   async getUpcommingEventsOfCategory(categoryId: string, query: Query) {
+    // Check if the category ID is valid
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
       throw new Error('Invalid category ID');
     }
     const category = new mongoose.Types.ObjectId(categoryId);
 
+    // Define pagination
     const resPerPage = 10;
     const currentPage = Number(query.page) || 1;
     if (isNaN(currentPage)) {
@@ -213,6 +252,7 @@ export class EventCategoriesService {
     }
     const skip = resPerPage * (currentPage - 1);
 
+    // Filter by keyword (optional)
     const keyword =
       typeof query.keyword === 'string' && query.keyword.trim() !== ''
         ? {
@@ -223,61 +263,70 @@ export class EventCategoriesService {
           }
         : {};
 
+    // Filter by date (upcoming events)
     const currentDate = new Date();
-    let eventList: any;
+
+    // Build the aggregation pipeline
+    const pipeline: any[] = [
+      {
+        $match: {
+          ...keyword,
+          categoryId: category,
+          dateEnd: { $gte: currentDate },
+        },
+      },
+      { $sample: { size: resPerPage } }, // Select 10 random events
+      { $skip: skip }, // Apply pagination
+    ];
+
+    // Add city filter if cityId is provided
     if (query.cityId) {
-      eventList = await this.eventModel
-        .find({
-          ...keyword,
-          categoryId: category,
-          cityId: query.cityId,
-          dateEnd: { $gte: currentDate },
-        })
-        .limit(resPerPage)
-        .skip(skip);
-    } else {
-      eventList = await this.eventModel
-        .find({
-          ...keyword,
-          categoryId: category,
-          dateEnd: { $gte: currentDate },
-        })
-        .limit(resPerPage)
-        .skip(skip);
+      const city: any = query.cityId;
+      if (!mongoose.Types.ObjectId.isValid(city)) {
+        throw new Error('Invalid city ID');
+      }
+      const cityId = new mongoose.Types.ObjectId(city);
+      pipeline[0].$match.cityId = cityId; // Add cityId to the $match filter
     }
 
+    // Execute the aggregation
+    const eventList = await this.eventModel.aggregate(pipeline);
+
+    // If events are found, enrich the data
     if (eventList.length > 0) {
-      let events: any = [];
-      for (const eventItem of eventList) {
-        const countryData: any = await this.countryModel.findById(
-          eventItem.countryId,
-        );
-        if (!countryData) {
-          throw new NotFoundException('country not found');
-        }
+      const events = await Promise.all(
+        eventList.map(async (eventItem) => {
+          const countryData = await this.countryModel.findById(
+            eventItem.countryId,
+          );
+          if (!countryData) {
+            throw new NotFoundException('Country not found');
+          }
 
-        const cityData = await this.cityModel.findById(eventItem.cityId);
-        if (!cityData) {
-          throw new NotFoundException('city not found');
-        }
+          const cityData = await this.cityModel.findById(eventItem.cityId);
+          if (!cityData) {
+            throw new NotFoundException('City not found');
+          }
 
-        const ticketClasses = await this.ticketClassesService.findByEventId(
-          eventItem._id,
-        );
-        if (!ticketClasses) {
-          throw new NotFoundException('ticketClasses not found');
-        }
+          const ticketClasses = await this.ticketClassesService.findByEventId(
+            eventItem._id,
+          );
+          if (!ticketClasses) {
+            throw new NotFoundException('Ticket classes not found');
+          }
 
-        let eventData: any = { ...eventItem };
-        eventData = eventData._doc;
-        eventData.countryData = countryData;
-        eventData.cityData = cityData;
-        eventData.ticketClasses = ticketClasses;
-
-        events = [...events, eventData];
-      }
+          return {
+            ...eventItem,
+            countryData,
+            cityData,
+            ticketClasses,
+          };
+        }),
+      );
 
       return events;
-    } else return eventList;
+    } else {
+      return eventList; // Return an empty list if no events are found
+    }
   }
 }

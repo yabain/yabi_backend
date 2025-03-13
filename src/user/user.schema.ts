@@ -1,9 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { Country } from 'src/country/country.schema';
+import mongoose from 'mongoose';
 
 export enum UserType {
   PERSONAL = 'personal',
-  ORGANISATION = 'prganisation',
+  ORGANISATION = 'organisation',
 }
 
 @Schema({
@@ -58,11 +60,11 @@ export class User extends Document {
   @Prop()
   description: string;
 
-  @Prop()
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'City' })
   cityId: string;
 
-  @Prop()
-  countryId: string;
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Country' })
+  countryId: Country;
 
   @Prop()
   phone: string;

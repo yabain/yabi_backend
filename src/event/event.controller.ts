@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
@@ -30,22 +29,37 @@ import { multerConfig } from '..//multer.config';
 export class EventController {
   constructor(private eventService: EventService) {}
 
+  /**
+   * Get all events with optional query parameters for filtering and pagination.
+   * @param query - Query parameters for filtering and pagination.
+   * @returns A list of events.
+   */
   @Get()
   async getAllEvents(@Query() query: ExpressQuery): Promise<Event[]> {
-    // console.log('Getting all event');
     return this.eventService.findAll(query);
   }
 
+  /**
+   * Get a specific event by ID.
+   * @param eventId - The ID of the event to retrieve.
+   * @returns The event details.
+   */
   @Get(':id')
   async getEvent(@Param('id') eventId: string): Promise<any> {
-    // console.log('Getting one event');
     return this.eventService.findById(eventId);
   }
 
+  /**
+   * Create a new event.
+   * @param event - The event data to create.
+   * @param req - The request object containing the authenticated user.
+   * @param files - The uploaded files (e.g., event cover image).
+   * @returns The created event.
+   */
   @Post('new')
-  @UseInterceptors(FilesInterceptor('file', 1, multerConfig)) // 'files' est le nom du champ dans le formulaire, 1 est le nombre maximum de fichiers
-  @UseGuards(AuthGuard()) // Applique un garde (guard) pour vérifier l'authentification
-  @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateEventDto`
+  @UseInterceptors(FilesInterceptor('file', 1, multerConfig)) // Handle file uploads
+  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
   async createEvent(
     @Body() event: any,
     @Req() req,
@@ -56,36 +70,56 @@ export class EventController {
       dateStart: new Date(req.body.dateStart),
       dateEnd: new Date(req.body.dateEnd),
     };
-    // console.log('create one event', eventData);
     return this.eventService.creatEvent(eventData, req, files);
   }
 
+  /**
+   * Update an existing event by ID.
+   * @param eventId - The ID of the event to update.
+   * @param event - The updated event data.
+   * @param req - The request object containing the authenticated user.
+   * @returns The updated event.
+   * @throws Error if the user is not authorized to update the event.
+   */
   @Put(':id')
-  @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
-  @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `UpdateEventDto`
+  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
   async update(
     @Param('id') eventId: string,
     @Body() event: UpdateEventDto,
     @Req() req,
   ): Promise<any> {
-    // console.log('Update one event, user / autor: ', req.user._id, event.autor);
-    // console.log('event data: ', event);
     if (req.user._id != event.autor) throw new Error('Unauthorized');
     return this.eventService.updateEvent(eventId, event);
   }
 
+  /**
+   * Delete an event by ID.
+   * @param eventId - The ID of the event to delete.
+   * @returns The result of the deletion operation.
+   */
   @Delete(':id')
-  @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
+  @UseGuards(AuthGuard()) // Protect the route with authentication
   async delete(@Param('id') eventId: string): Promise<any> {
     return this.eventService.deleteEvent(eventId);
   }
 
+  /**
+   * Get the list of participants for a specific event.
+   * @param eventId - The ID of the event.
+   * @returns A list of participants.
+   */
   @Get('participants/:id')
   async getParticipantsList(@Param('id') eventId: string): Promise<any> {
-    // console.log('Getting one event');
     return this.eventService.getParticipantsList(eventId);
   }
 
+  /**
+   * Get progressive public events of a user with pagination.
+   * @param eventId - The ID of the user.
+   * @param query - Query parameters for pagination.
+   * @returns A list of public events.
+   */
   @Get('public-events/:id')
   async getProgressivePublicEventsOfUser(
     @Param('id') eventId: string,
@@ -94,28 +128,39 @@ export class EventController {
     return this.eventService.getProgressivePublicEventsOfUser(eventId, query);
   }
 
+  /**
+   * Get all events of the authenticated user with pagination.
+   * @param eventId - The ID of the user (unused in this method).
+   * @param req - The request object containing the authenticated user.
+   * @param query - Query parameters for pagination.
+   * @returns A list of all events of the user.
+   */
   @Get('all-my-events/:id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard()) // Protect the route with authentication
   async getProgressiveAllEventsOfUser(
     @Param('id') eventId: string,
     @Req() req,
     @Query() query: ExpressQuery,
   ): Promise<any> {
-    console.log('getProgressiveAllEventsOfUser')
     return this.eventService.getProgressiveAllEventsOfUser(req.user._id, query);
   }
 
+  /**
+   * Get metadata for a specific event (e.g., title, image, description).
+   * @param eventId - The ID of the event.
+   * @returns The event metadata.
+   */
   @Get(':id/metadata')
   async getEventMetadata(@Param('id') eventId: string) {
     const event = await this.eventService.findEventById(eventId);
 
     if (!event) {
-      return { error: 'Événement non trouvé' };
+      return { error: 'Event not found' };
     }
 
     return {
       title: event.title,
-      image: event.cover, // Assurez-vous que `cover` contient l'URL de l'image
+      image: event.cover, // Ensure `cover` contains the image URL
       description: event.description,
     };
   }
