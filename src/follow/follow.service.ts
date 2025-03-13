@@ -102,9 +102,9 @@ export class FollowService {
     let followersData: any = [];
     for (const follower of followers) {
       try {
-        const user: any = follower.userId;
+        let user: any = follower.userId;
         const followers = await this.getFollowersNumber(user._id);
-        user.followers = followers.length;
+        user = { ...user._doc, followers: followers.length };
         followersData = [...followersData, user];
       } catch (error) {
         console.error('Error fetching user:', error);
@@ -123,17 +123,17 @@ export class FollowService {
     return followings;
   }
 
-  async getFollowingsList(currentUserId: any, query: Query): Promise<any> {
+  async getFollowingsList(userId: any, query: Query): Promise<any> {
     const resPerPage = 20;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
-    let currentUserId2: any = currentUserId;
-    if (!mongoose.Types.ObjectId.isValid(currentUserId)) {
-      currentUserId2 = new mongoose.Types.ObjectId(currentUserId);
+    let userId2: any = userId;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      userId2 = new mongoose.Types.ObjectId(userId);
     }
 
     const followings = await this.followModel
-      .find({ userId: currentUserId2 })
+      .find({ userId: userId2 })
       .populate('followId')
       .limit(resPerPage)
       .skip(skip);
@@ -141,9 +141,9 @@ export class FollowService {
     let followingsData: any = [];
     for (const following of followings) {
       try {
-        const user: any = following.userId;
-        const followings = await this.getFollowingsNumber(user._id);
-        user.followings = followings.length;
+        let user: any = following.followId;
+        const followings = await this.getFollowersNumber(user._id);
+        user = { ...user._doc, followers: followings.length };
         followingsData = [...followingsData, user];
       } catch (error) {
         console.error('Error fetching user:', error);

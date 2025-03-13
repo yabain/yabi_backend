@@ -72,18 +72,18 @@ export class UserController {
   }
 
   @Put('picture')
-  @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfig)) // Utiliser la configuration Multer
-  @UseGuards(AuthGuard()) // Protéger la route avec un garde d'authentification
-  @UsePipes(ValidationPipe) // Utiliser un pipe de validation
+  @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfig))
+  @UseGuards(AuthGuard())
+  @UsePipes(ValidationPipe)
   async updatePicture(
-    @Req() req, // Récupérer la requête
-    @UploadedFiles() picture: Array<Express.Multer.File>, // Récupérer le fichier uploadé
+    @Req() req,
+    @UploadedFiles() picture: Array<Express.Multer.File>,
   ): Promise<any> {
     if (!picture || picture.length === 0) {
       throw new BadRequestException('No file uploaded');
     }
     console.log('fichier: ', picture);
-    return this.userService.updateUserPicture(req, picture); // Passer le premier fichier au service
+    return this.userService.updateUserPicture(req, picture);
   }
 
   @Delete(':id')

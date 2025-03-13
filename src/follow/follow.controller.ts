@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  Post,
+  Query,
   Req,
   UseGuards,
   UsePipes,
@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { FollowService } from './follow.service';
 import { AuthGuard } from '@nestjs/passport';
+import { Query as ExpressQuery } from 'express-serve-static-core';
 
 @Controller('follow')
 export class FollowController {
@@ -38,15 +39,33 @@ export class FollowController {
     return this.followService.unFollow(req.user._id, userId);
   }
 
-  @Get('followers')
+  @Get('followers-number')
   @UsePipes(ValidationPipe)
-  async getFollowers(@Req() req): Promise<any> {
+  async getFollowersNumber(@Req() req): Promise<any> {
     return this.followService.getFollowersNumber(req.user._id);
   }
 
-  @Get('followings')
+  @Get('followings-number')
   @UsePipes(ValidationPipe)
-  async getFollowings(@Req() req): Promise<any> {
+  async getFollowingsNumber(@Req() req): Promise<any> {
     return this.followService.getFollowingsNumber(req.user._id);
+  }
+
+  @Get('followers-list/:id')
+  @UsePipes(ValidationPipe)
+  async getFollowersList(
+    @Param('id') userId: string,
+    @Query() query: ExpressQuery,
+  ): Promise<any> {
+    return this.followService.getFollowersList(userId, query);
+  }
+
+  @Get('followings-list/:id')
+  @UsePipes(ValidationPipe)
+  async getFollowingsList(
+    @Param('id') userId: string,
+    @Query() query: ExpressQuery,
+  ): Promise<any> {
+    return this.followService.getFollowingsList(userId, query);
   }
 }
