@@ -83,30 +83,13 @@ export class EventService {
       throw new NotFoundException('Invalid user ID 0');
     }
 
-    const event: any = await this.eventModel.findById(eventId);
+    const event: any = await this.eventModel
+      .findById(eventId)
+      .populate('cityId')
+      .populate('countryId')
+      .populate('categoryId');
     if (!event) {
       throw new NotFoundException('Event not found');
-    }
-
-    const userData: any = await this.userService.findById(event.autor);
-    if (!userData) {
-      throw new NotFoundException('Autor not found');
-    }
-    const countryData: any = await this.countryModel.findById(event.countryId);
-    if (!countryData) {
-      throw new NotFoundException('country not found');
-    }
-
-    const cityData = await this.cityModel.findById(event.cityId);
-    if (!cityData) {
-      throw new NotFoundException('city not found');
-    }
-
-    const categoryData = await this.eventCategoryModel.findById(
-      event.categoryId,
-    );
-    if (!categoryData) {
-      throw new NotFoundException('categoryData not found');
     }
 
     const ticketClasses =
@@ -115,14 +98,21 @@ export class EventService {
       throw new NotFoundException('ticketClasses not found');
     }
 
+    // Get author data with followers
+    const userData: any = await this.userService.findById(event.autor);
+    if (!userData) {
+      throw new NotFoundException('Autor not found');
+    }
+
     console.log('eventData: ', event);
     const eventData: any = { ...event._doc };
-    userData.password = '';
-    eventData.autorData = userData;
-    eventData.countryData = countryData;
-    eventData.cityData = cityData;
+    const user: any = userData;
+    user.password = '';
+    eventData.autorData = user;
+    eventData.countryData = eventData.countryId;
+    eventData.cityData = eventData.city;
+    eventData.category = eventData.categoryId;
     eventData.ticketClasses = ticketClasses;
-    eventData.category = categoryData;
 
     return eventData;
   }
@@ -141,6 +131,9 @@ export class EventService {
   }
 
   async deleteEvent(eventId: string): Promise<any> {
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      throw new NotFoundException('Invalid categoryId');
+    }
     return await this.eventModel.findByIdAndDelete(eventId);
   }
 
@@ -167,7 +160,7 @@ export class EventService {
     let participants: any[] = [];
     for (const ticket of uniqueData as any[]) {
       const userId = new mongoose.Types.ObjectId(ticket.userId);
-      const user = await this.userService.findById(userId); // Ajouter await
+      const user = await this.userService.findById(userId);
       participants = [...participants, user];
     }
 
@@ -216,24 +209,17 @@ export class EventService {
 
     const eventList = await this.eventModel
       .find({ autor: userId })
+      .populate('cityId')
+      .populate('countryId')
       .limit(resPerPage)
       .skip(skip);
+    if (!eventList) {
+      throw new NotFoundException('Event not found');
+    }
 
     if (eventList.length > 0) {
       let events: any = [];
       for (const eventItem of eventList) {
-        const countryData: any = await this.countryModel.findById(
-          eventItem.countryId,
-        );
-        if (!countryData) {
-          throw new NotFoundException('country not found');
-        }
-
-        const cityData = await this.cityModel.findById(eventItem.cityId);
-        if (!cityData) {
-          throw new NotFoundException('city not found');
-        }
-
         const ticketClasses = await this.ticketClassesService.findByEventId(
           eventItem._id,
         );
@@ -243,8 +229,8 @@ export class EventService {
 
         let eventData: any = { ...eventItem };
         eventData = eventData._doc;
-        eventData.countryData = countryData;
-        eventData.cityData = cityData;
+        eventData.countryData = eventData.countryId;
+        eventData.cityData = eventData.cityId;
         eventData.ticketClasses = ticketClasses;
 
         events = [...events, eventData];

@@ -2,11 +2,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { Favorite } from './favorite.schema';
 import { Event } from '../event/event.schema';
+import { Query } from 'express-serve-static-core';
+import { TicketClassesService } from 'src/ticket-classes/ticket-classes.service';
 
 @Injectable()
 export class FavoriteService {
@@ -15,24 +17,46 @@ export class FavoriteService {
     private favoriteModel: mongoose.Model<Favorite>,
     @InjectModel(Event.name)
     private eventModel: mongoose.Model<Event>,
+    private ticketClassesService: TicketClassesService,
   ) {}
 
-  // Check if event eId extist on favorites events of user id
-  async gestAllFavoritesEvent(id: any): Promise<Favorite[]> {
+  async gestAllFavoritesEventOfUser(id: any, query: Query): Promise<Event[]> {
+    const resPerPage = 10;
+    const currentPage = Number(query.page) || 1;
+    const skip = resPerPage * (currentPage - 1);
+
     let userId: any = id;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       userId = new mongoose.Types.ObjectId(id);
     }
 
-    const favorites = await this.favoriteModel.find({ userId: userId }).exec();
-    let res: any[] = [];
+    const favorites = await this.favoriteModel
+      .find({ userId: userId })
+      .limit(resPerPage)
+      .skip(skip);
+
+    let events: any[] = [];
     for (const favorite of favorites) {
-      const favoriteData: any = { ...favorite };
-      const addData = await this.eventModel.find(favoriteData.eventId);
-      res = [...res, addData];
+      const event = await this.eventModel
+        .findById(favorite.eventId)
+        .populate('countryId')
+        .populate('cityId');
+
+      const ticketClasses = await this.ticketClassesService.findByEventId(
+        favorite.eventId,
+      );
+      if (!ticketClasses) {
+        throw new NotFoundException('ticketClasses not found');
+      }
+      let eventData: any = { ...event };
+      eventData = { ...eventData._doc };
+      eventData.cityData = eventData.cityId;
+      eventData.countryData = eventData.countryId;
+      eventData.ticketClasses = ticketClasses;
+      events = [...events, eventData];
     }
 
-    return res;
+    return events;
   }
 
   // Check if event eId extist on favorites events of user id

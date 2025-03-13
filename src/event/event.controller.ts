@@ -101,6 +101,7 @@ export class EventController {
     @Req() req,
     @Query() query: ExpressQuery,
   ): Promise<any> {
+    console.log('getProgressiveAllEventsOfUser')
     return this.eventService.getProgressiveAllEventsOfUser(req.user._id, query);
   }
 
