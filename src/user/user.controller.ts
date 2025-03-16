@@ -25,24 +25,7 @@ import { Query as ExpressQuery } from 'express-serve-static-core';
 import { UpdateUserDto } from './update-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import * as path from 'path';
-
-// Configuration for Multer to handle file uploads
-export const multerConfig = {
-  storage: diskStorage({
-    destination: './assets/images', // Directory where files will be stored
-    filename: (req: any, file, callback) => {
-      const userId = req.user._id; // Get user ID from the request
-      const fileExt = path.extname(file.originalname); // Get file extension
-      const fileName = `pictureFile_${userId}${fileExt}`; // Generate file name
-      callback(null, fileName); // Return the file name
-    },
-  }),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // Limit file size to 5 MB
-  },
-};
+import { multerConfigForUser } from '..//multer.config';
 
 @Controller('user')
 export class UserController {
@@ -100,7 +83,7 @@ export class UserController {
    * @throws BadRequestException if no file is uploaded.
    */
   @Put('picture')
-  @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfig)) // Handle file uploads
+  @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfigForUser)) // Handle file uploads
   @UseGuards(AuthGuard()) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
   async updatePicture(
@@ -110,7 +93,6 @@ export class UserController {
     if (!picture || picture.length === 0) {
       throw new BadRequestException('No file uploaded');
     }
-    console.log('file: ', picture);
     return this.userService.updateUserPicture(req, picture);
   }
 

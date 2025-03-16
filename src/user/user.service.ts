@@ -113,7 +113,9 @@ export class UserService {
     const user = await this.userModel.findByIdAndUpdate(userId, userData, {
       new: true,
       runValidators: true,
-    });
+    })
+    .populate('countryId')
+    .populate('cityId');
 
     return user;
   }
@@ -155,7 +157,6 @@ export class UserService {
       { new: true, runValidators: true },
     );
 
-    console.log('User Updated: ', updatedUser);
     return updatedUser;
   }
 

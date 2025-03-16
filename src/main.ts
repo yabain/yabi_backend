@@ -9,11 +9,11 @@ async function bootstrap() {
 
   // Activer CORS
   app.enableCors({
-    origin: '*', // Autoriser uniquement les requêtes depuis ce domaine
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS', // Méthodes HTTP autorisées
+    origin: '*', // Autoriser toutes les origines (à adapter en production)
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders:
-      'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization', // En-têtes autorisés
-    credentials: true, // Autoriser les cookies et les en-têtes d'authentification
+      'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization',
+    credentials: true,
   });
 
   // Activer le ValidationPipe globalement
@@ -25,9 +25,9 @@ async function bootstrap() {
     }),
   );
 
-  // Servir les fichiers statiques depuis le dossier 'uploads'
-  app.useStaticAssets(join(__dirname, '..', 'assets', 'images'), {
-    prefix: '/assets/images',
+  // Servir les fichiers statiques depuis le dossier 'assets/images'
+  app.useStaticAssets(join(__dirname, '..', '..', 'assets'), {
+    prefix: '/assets',
   });
 
   await app.listen(process.env.PORT ?? 3000);

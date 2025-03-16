@@ -6,9 +6,7 @@ import {
   IsEnum,
   IsBoolean,
   IsEmpty,
-  IsNumber,
   IsNotEmpty,
-  // IsDate,
 } from 'class-validator';
 
 export class UpdateEventDto {

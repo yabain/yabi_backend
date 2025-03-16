@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -23,7 +26,7 @@ import { Query as ExpressQuery } from 'express-serve-static-core';
 import { UpdateEventDto } from './update-event.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { multerConfig } from '..//multer.config';
+import { multerConfig, multerConfigForEvent } from '..//multer.config';
 
 @Controller('event')
 export class EventController {
@@ -91,6 +94,28 @@ export class EventController {
   ): Promise<any> {
     if (req.user._id != event.autor) throw new Error('Unauthorized');
     return this.eventService.updateEvent(eventId, event);
+  }
+
+  /**
+   * Update the cover image of event.
+   * @param req - The request object containing the authenticated user.
+   * @param picture - The uploaded picture file.
+   * @returns The updated user data.
+   * @throws BadRequestException if no file is uploaded.
+   */
+  @Put('picture/:id')
+  @UseInterceptors(FilesInterceptor('eventCover', 1, multerConfigForEvent)) // Handle file uploads
+  @UseGuards(AuthGuard())
+  @UsePipes(ValidationPipe)
+  async updateEventCover(
+    @Param('id') eventId: string,
+    @Req() req,
+    @UploadedFiles() picture: Array<Express.Multer.File>,
+  ): Promise<any> {
+    if (!picture || picture.length === 0) {
+      throw new BadRequestException('No file uploaded');
+    }
+    return this.eventService.updateEventCover(req, eventId, picture);
   }
 
   /**

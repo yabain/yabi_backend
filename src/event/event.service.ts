@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -16,7 +17,8 @@ import { UpdateEventDto } from './update-event.dto';
 import { TicketClassesService } from '../ticket-classes/ticket-classes.service';
 import { EventCategories } from '../event-categories/event-categories.schema';
 import { TicketService } from '../ticket/ticket.service';
-import { UserService } from 'src/user/user.service';
+import { UserService } from '../user/user.service';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class EventService {
@@ -32,6 +34,7 @@ export class EventService {
     private userService: UserService,
     private ticketClassesService: TicketClassesService,
     private TicketService: TicketService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -94,6 +97,8 @@ export class EventService {
       res._id,
     );
 
+    this.notificationService.createNotificationToFollowers(userId, res);
+
     return res;
   }
 
@@ -136,9 +141,6 @@ export class EventService {
     const user: any = userData;
     user.password = ''; // Remove password for security
     eventData.autorData = user;
-    eventData.countryData = eventData.countryId;
-    eventData.cityData = eventData.city;
-    eventData.category = eventData.categoryId;
     eventData.ticketClasses = ticketClasses;
 
     return eventData;
@@ -310,5 +312,46 @@ export class EventService {
     } else {
       return eventList;
     }
+  }
+
+  /**
+   * Update the cover image of event.
+   * @param req - The request object containing the authenticated user.
+   * @param files - The uploaded files (e.g. cover picture).
+   * @returns The updated event data.
+   * @throws NotFoundException if the event ID is invalid or the event is not found.
+   */
+  async updateEventCover(
+    req: any,
+    eventId: any,
+    files: Array<Express.Multer.File>,
+  ): Promise<any> {
+    // Check if the event ID is valid
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      throw new NotFoundException('Invalid event');
+    }
+
+    // Find the event by ID
+    const event = await this.eventModel.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    // Generate URLs for the uploaded files
+    const fileUrls = files.map((file) => {
+      return `${req.protocol}://${req.get('host')}/assets/images/${file.filename}`;
+    });
+
+    // Prepare the update data with the new profile cover URL
+    const eventPictureUpdate = { cover: fileUrls[0] };
+
+    // Update the event's cover picture in the database
+    const updatedEvent = await this.eventModel.findByIdAndUpdate(
+      eventId,
+      eventPictureUpdate,
+      { new: true, runValidators: true },
+    );
+
+    return updatedEvent;
   }
 }

@@ -16,6 +16,9 @@ export class User extends Document {
   email: string;
 
   @Prop()
+  resetPasswordToken: string;
+
+  @Prop()
   accountType: UserType;
 
   @Prop()

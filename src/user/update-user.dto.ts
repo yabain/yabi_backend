@@ -11,6 +11,9 @@ export class UpdateUserDto {
   @IsEmpty({ message: 'password must been empty' })
   readonly password: string;
 
+  @IsEmpty({ message: 'You cannot pass resetPasswordToken' })
+  readonly resetPasswordToken: string;
+
   @IsEmpty({ message: 'agreeTerms must been empty' })
   readonly agreeTerms: boolean;
 

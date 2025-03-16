@@ -84,8 +84,14 @@ export class FollowService {
     return followers;
   }
 
-  async getFollowersList(currentUserId: any, query: Query): Promise<any> {
-    const resPerPage = 20;
+  async getFollowersList(
+    currentUserId: any,
+    query: Query,
+    resPerPage?: number,
+  ): Promise<any> {
+    if (!resPerPage) {
+      resPerPage = 20;
+    }
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
     let currentUserId2: any = currentUserId;

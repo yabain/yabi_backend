@@ -33,6 +33,10 @@ export class CreateUserDto {
   @IsOptional()
   readonly verified: boolean;
 
+  @IsEmpty({ message: 'You cannot pass resetPasswordToken' })
+  @IsOptional()
+  readonly resetPasswordToken: string;
+
   @IsBoolean()
   @IsEmpty({ message: 'You cannot pass vip' })
   @IsOptional()

@@ -10,11 +10,13 @@ import { CitySchema } from '../city/city.schema';
 import { TicketClassesSchema } from '../ticket-classes/ticket-classes.shema';
 import { TicketClassesService } from '../ticket-classes/ticket-classes.service';
 import { EventCategoriesSchema } from '../event-categories/event-categories.schema';
-import { TicketService } from 'src/ticket/ticket.service';
-import { TicketSchema } from 'src/ticket/ticket.schema';
-import { Follow, FollowSchema } from 'src/follow/follow.schema';
-import { UserService } from 'src/user/user.service';
-import { FollowService } from 'src/follow/follow.service';
+import { TicketService } from '../ticket/ticket.service';
+import { TicketSchema } from '../ticket/ticket.schema';
+import { Follow, FollowSchema } from '../follow/follow.schema';
+import { UserService } from '../user/user.service';
+import { FollowService } from '../follow/follow.service';
+import { NotificationSchema } from '../notification/notification.schema';
+import { NotificationService } from '../notification/notification.service';
 
 @Module({
   imports: [
@@ -26,6 +28,9 @@ import { FollowService } from 'src/follow/follow.service';
     MongooseModule.forFeature([{ name: 'Country', schema: CountrySchema }]),
     MongooseModule.forFeature([{ name: 'City', schema: CitySchema }]),
     MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
+    MongooseModule.forFeature([
+      { name: 'Notification', schema: NotificationSchema },
+    ]),
     MongooseModule.forFeature([
       { name: 'TicketClasses', schema: TicketClassesSchema },
     ]),
@@ -39,6 +44,7 @@ import { FollowService } from 'src/follow/follow.service';
     TicketService,
     UserService,
     FollowService,
+    NotificationService,
   ],
   exports: [EventService],
 })

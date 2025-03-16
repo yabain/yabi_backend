@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsEmpty,
-  IsNumber,
-  IsBoolean,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsEmpty } from 'class-validator';
 import { EventCategories } from '../event-categories/event-categories.schema';
 import { User } from '../user/user.schema';
 import { TicketClass } from '../event/event.schema';

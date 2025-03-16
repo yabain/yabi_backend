@@ -17,6 +17,9 @@ import { TicketModule } from './ticket/ticket.module';
 import { AheadModule } from './ahead/ahead.module';
 // import { GatewayModule } from './gateway/gateway.module';
 import { RevokedTokenModule } from './revoked-token/revoked-token.module';
+import { EmailModule } from './email/email.module';
+import { environment } from 'env';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -24,9 +27,7 @@ import { RevokedTokenModule } from './revoked-token/revoked-token.module';
       envFilePath: '.env',
       isGlobal: true,
     }),
-    MongooseModule.forRoot(
-      `mongodb+srv://yabi_events:Entreprise1230@yabievents.xx9vf.mongodb.net/?retryWrites=true&w=majority&appName=YabiEvents`,
-    ),
+    MongooseModule.forRoot(environment.DB_URL),
     UserModule,
     AuthModule,
     EventModule,
@@ -40,6 +41,8 @@ import { RevokedTokenModule } from './revoked-token/revoked-token.module';
     TicketModule,
     AheadModule,
     RevokedTokenModule,
+    EmailModule,
+    NotificationModule,
     // GatewayModule,
   ],
   controllers: [AppController],

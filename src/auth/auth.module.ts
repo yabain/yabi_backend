@@ -10,6 +10,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { HttpModule } from '@nestjs/axios';
+import { RevokedTokenSchema } from '../revoked-token/revoked-token.schema';
+import { EmailService } from 'src/email/email.service';
+import { environment } from 'env';
 
 @Module({
   imports: [
@@ -19,17 +22,20 @@ import { HttpModule } from '@nestjs/axios';
       inject: [ConfigService],
       useFactory: () => {
         return {
-          secret: 'thesecretforyabievents',
+          secret: environment.JWT_SECRET,
           signOptions: {
-            expiresIn: '30d',
+            expiresIn: environment.JWT_EXPIRES,
           },
         };
       },
     }),
     MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: 'RevokedToken', schema: RevokedTokenSchema },
+    ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, EmailService],
   exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}
