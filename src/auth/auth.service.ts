@@ -172,6 +172,7 @@ export class AuthService {
       email,
       'Réinitialisation de Mot de Passe',
       'password-reset', // Nom du template (sans extension)
+      'en',
       {
         name: user.name, // Variables pour le template
         resetLink,
@@ -222,6 +223,7 @@ export class AuthService {
       email,
       'Réinitialisation de Mot de Passe',
       'password-reset', // Nom du template (sans extension)
+      'en',
       {
         name: 'Test Nom et Prénom', // Variables pour le template
         resetLink: 'yabi.cm',
