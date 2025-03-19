@@ -24,8 +24,8 @@ export class AuthController {
     return this.authService.requestPasswordReset(email);
   }
 
-  @Post('test')
-  async test(@Body('email') email: string) {
-    return this.authService.testMail(email);
-  }
+  // @Post('test')
+  // async test(@Body('email') email: string) {
+  //   return this.authService.testMail(email);
+  // }
 }

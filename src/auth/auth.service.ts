@@ -165,19 +165,12 @@ export class AuthService {
     await user.save();
 
     // Lien de réinitialisation
-    const resetLink = `https://yabi.cm/reset-password?token=${resetToken}`;
+    const resetPwdUrl = `https://yabi.cm/reset-password?token=${resetToken}`;
 
-    // Envoyez l'email avec le template
-    await this.emailService.sendEmailWithTemplate(
-      email,
-      'Réinitialisation de Mot de Passe',
-      'password-reset', // Nom du template (sans extension)
-      'en',
-      {
-        name: user.name, // Variables pour le template
-        resetLink,
-      },
-    );
+    await this.emailService.sendResetPwd(email, 'en', {
+      name: user.name,
+      resetPwdUrl,
+    });
 
     return { message: 'Password reset email sent' };
   }
@@ -212,22 +205,6 @@ export class AuthService {
     user.password = hashedPwd;
     user.resetPasswordToken = ''; // Effacez le token de réinitialisation
     await user.save();
-
     return { message: 'Password reset successful' };
-  }
-
-  async testMail(email: string): Promise<any> {
-    console.log('email: ', email);
-    // Envoyez l'email avec le template
-    return await this.emailService.sendEmailWithTemplate(
-      email,
-      'Réinitialisation de Mot de Passe',
-      'password-reset', // Nom du template (sans extension)
-      'en',
-      {
-        name: 'Test Nom et Prénom', // Variables pour le template
-        resetLink: 'yabi.cm',
-      },
-    );
   }
 }

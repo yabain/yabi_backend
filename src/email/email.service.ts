@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -11,6 +12,7 @@ import { environment } from 'env';
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  templateFolder: any = path.join(__dirname, '..', '..', 'email', 'templates');
 
   constructor() {
     this.transporter = nodemailer.createTransport({
@@ -21,67 +23,26 @@ export class EmailService {
       },
     });
   }
-
-  async sendEmailWithTemplate(
-    toEmail: string,
-    subject: string,
-    templateName: string,
-    language: string,
-    context: Record<string, any>,
-  ): Promise<void> {
-    const templatePath = path.join(
-      __dirname,
-      '..',
-      '..',
-      'email',
-      'templates',
-      `${templateName}_${language}.hbs`,
-    );
-    const templateSource = fs.readFileSync(templatePath, 'utf8');
-    const template = handlebars.compile(templateSource);
-
-    // Remplissez le template avec les variables
-    const html = template(context);
-
-    // Envoyez l'email
-    await this.transporter.sendMail({
-      from: environment.EMAIL_USER,
-      toEmail,
-      subject,
-      html,
-    });
-  }
-
   async sendWelcomeEmailAccountCreation(
     toEmail: string,
-    templateName: string,
-    language: string,
-    context: Record<string, any>,
+    language: string, // 'fr' || 'en'
+    context: Record<string, any>, // userName && frontUrl
   ): Promise<void> {
+    const templateName = 'welcome-email';
     let subject: string = '';
     if (language === 'fr') {
       subject = 'Bienvenue sur Yabi Events';
     } else subject = 'Welcome to Yabi Events';
-    // Chargez le template Handlebars
     const templatePath = path.join(
-      __dirname,
-      '..', // Remonte d'un niveau (src -> dist)
-      '..',
-      'email',
-      'templates',
+      this.templateFolder,
       `${templateName}_${language}.hbs`,
     );
-
-    console.log('Ici le test', environment.EMAIL_USER, toEmail, subject, language);
 
     const templateSource = fs.readFileSync(templatePath, 'utf8');
     const template = handlebars.compile(templateSource);
 
-    // Remplissez le template avec les variables
     const html = template(context);
 
-    console.log('Ici le test', environment.EMAIL_USER, toEmail, subject);
-    // Envoyez l'email
     await this.transporter.sendMail({
       from: environment.EMAIL_USER,
       to: toEmail,
@@ -92,34 +53,24 @@ export class EmailService {
 
   async sendResetPwd(
     toEmail: string,
-    templateName: string,
-    language: string,
-    context: Record<string, any>,
+    language: string, // 'fr' || 'en'
+    context: Record<string, any>, // userName && resetPwdUrl
   ): Promise<void> {
     let subject: string = '';
+    const templateName = 'reset-pwd';
     if (language === 'fr') {
       subject = 'Réinitialisation de Mot de Passe';
     } else language = 'Password Reset';
-    // Chargez le template Handlebars
     const templatePath = path.join(
-      __dirname,
-      '..', // Remonte d'un niveau (src -> dist)
-      '..',
-      'email',
-      'templates',
+      this.templateFolder,
       `${templateName}_${language}.hbs`,
     );
 
-    console.log('Ici le test', environment.EMAIL_USER, toEmail, subject);
-
     const templateSource = fs.readFileSync(templatePath, 'utf8');
     const template = handlebars.compile(templateSource);
-
-    // Remplissez le template avec les variables
     const html = template(context);
 
     console.log('Ici le test', environment.EMAIL_USER, toEmail, subject);
-    // Envoyez l'email
     await this.transporter.sendMail({
       from: environment.EMAIL_USER,
       to: toEmail,
