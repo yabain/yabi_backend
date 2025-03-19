@@ -57,7 +57,6 @@ export class AuthService {
       }
 
       datas = Object.assign(datas, { active: true }); // Set the user as active by default
-
       const hashedPwd = await bcrypt.hash(userData.password, 10); // Hash the password for security
       const create: any = await this.userModel.create({
         ...datas,
@@ -76,6 +75,7 @@ export class AuthService {
 
       user.password = ''; // Remove the password from the response for security
 
+      // this.emailService.sendWelcomeEmailAccountCreation(user.email, user.language, {  })
       // Return the user data and a JWT token for authentication
       return { userData: user, token: this.jwtService.sign({ id: user._id }) };
     } catch (error) {
@@ -165,12 +165,9 @@ export class AuthService {
     await user.save();
 
     // Lien de réinitialisation
-    const resetPwdUrl = `https://yabi.cm/reset-password?token=${resetToken}`;
+    const resetPwdUrl = `?token=${resetToken}`;
 
-    await this.emailService.sendResetPwd(email, 'en', {
-      name: user.name,
-      resetPwdUrl,
-    });
+    await this.emailService.sendResetPwd(email, 'en', user.name, resetPwdUrl);
 
     return { message: 'Password reset email sent' };
   }

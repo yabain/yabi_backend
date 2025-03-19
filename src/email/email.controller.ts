@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { EmailService } from './email.service';
 
 @Controller('email')
@@ -12,11 +12,11 @@ export class EmailController {
   async sendWelcomeEmailAccountCreation(@Body() body: any): Promise<any> {
     const toEmail = body.to;
     const language = body.language; // 'fr' || 'en'
-    const context = body.context; // userName && frontUrl
+    const userName = body.userName;
     return this.emailService.sendWelcomeEmailAccountCreation(
       toEmail,
       language,
-      context,
+      userName,
     );
   }
 
@@ -24,7 +24,8 @@ export class EmailController {
   async sendResetPwd(@Body() body: any): Promise<any> {
     const toEmail = body.to;
     const language = body.language; // 'fr' || 'en'
-    const context = body.context; // userName && resetPwdUrl
-    return this.emailService.sendResetPwd(toEmail, language, context);
+    const userName = body.userName;
+    const token = body.token;
+    return this.emailService.sendResetPwd(toEmail, language, userName, token);
   }
 }

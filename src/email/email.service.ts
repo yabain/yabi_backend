@@ -12,21 +12,31 @@ import { environment } from 'env';
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  private transporterSupport: nodemailer.Transporter;
   templateFolder: any = path.join(__dirname, '..', '..', 'email', 'templates');
 
   constructor() {
     this.transporter = nodemailer.createTransport({
       service: environment.EMAIL_SERVICE,
       auth: {
-        user: environment.EMAIL_USER,
-        pass: environment.EMAIL_PASSWORD,
+        user: environment.EMAIL_TEAM,
+        pass: environment.PASSWORD_TEAM,
+      },
+    });
+
+    this.transporterSupport = nodemailer.createTransport({
+      service: environment.EMAIL_SERVICE,
+      auth: {
+        user: environment.EMAIL_SUPPORT,
+        pass: environment.PASSWORD_SUPPORT,
       },
     });
   }
+
   async sendWelcomeEmailAccountCreation(
     toEmail: string,
     language: string, // 'fr' || 'en'
-    context: Record<string, any>, // userName && frontUrl
+    userName: string,
   ): Promise<void> {
     const templateName = 'welcome-email';
     let subject: string = '';
@@ -37,6 +47,10 @@ export class EmailService {
       this.templateFolder,
       `${templateName}_${language}.hbs`,
     );
+    const context: any = {
+      frontUrl: environment.FRONT_URL,
+      userName: userName,
+    };
 
     const templateSource = fs.readFileSync(templatePath, 'utf8');
     const template = handlebars.compile(templateSource);
@@ -44,7 +58,7 @@ export class EmailService {
     const html = template(context);
 
     await this.transporter.sendMail({
-      from: environment.EMAIL_USER,
+      from: environment.EMAIL_TEAM,
       to: toEmail,
       subject,
       html,
@@ -52,15 +66,16 @@ export class EmailService {
   }
 
   async sendResetPwd(
-    toEmail: string,
+    toEmail: string, // User email
     language: string, // 'fr' || 'en'
-    context: Record<string, any>, // userName && resetPwdUrl
+    userName: string,
+    token: string,
   ): Promise<void> {
     let subject: string = '';
     const templateName = 'reset-pwd';
     if (language === 'fr') {
       subject = 'Réinitialisation de Mot de Passe';
-    } else language = 'Password Reset';
+    } else subject = 'Password Reset';
     const templatePath = path.join(
       this.templateFolder,
       `${templateName}_${language}.hbs`,
@@ -68,11 +83,14 @@ export class EmailService {
 
     const templateSource = fs.readFileSync(templatePath, 'utf8');
     const template = handlebars.compile(templateSource);
-    const html = template(context);
 
-    console.log('Ici le test', environment.EMAIL_USER, toEmail, subject);
-    await this.transporter.sendMail({
-      from: environment.EMAIL_USER,
+    const context: any = {
+      resetPwdUrl: environment.FRONT_URL + '/reset-password' + token,
+      userName: userName,
+    };
+    const html = template(context);
+    await this.transporterSupport.sendMail({
+      from: environment.EMAIL_TEAM,
       to: toEmail,
       subject,
       html,
