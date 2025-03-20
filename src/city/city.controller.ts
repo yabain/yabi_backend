@@ -22,8 +22,8 @@ export class CityController {
   constructor(private cityService: CityService) {}
 
   @Get()
-  async getAllCities(@Query() query: ExpressQuery): Promise<City[]> {
-    return this.cityService.findAll(query);
+  async findAllCities(@Query() query: ExpressQuery): Promise<City[]> {
+    return this.cityService.findAllCities(query);
   }
 
   @Post('new')

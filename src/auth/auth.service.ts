@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -73,9 +72,18 @@ export class AuthService {
         throw new UnauthorizedException('Email or password invalid'); // Handle case where user creation fails
       }
 
-      user.password = ''; // Remove the password from the response for security
+      user.password = '';
 
-      // this.emailService.sendWelcomeEmailAccountCreation(user.email, user.language, {  })
+      let userName: string = '';
+      if (user.firstName && user.firstName != '' && user.firstName != null) {
+        userName = user.firstName + ' ' + user.lastName;
+      } else userName = user.name;
+      await this.emailService.sendWelcomeEmailAccountCreation(
+        user.email,
+        user.language,
+        userName,
+      );
+
       // Return the user data and a JWT token for authentication
       return { userData: user, token: this.jwtService.sign({ id: user._id }) };
     } catch (error) {
@@ -116,27 +124,27 @@ export class AuthService {
   }
 
   /**
-   * Déconnecte l'utilisateur en ajoutant son token à la liste noire.
-   * @param token - Le token JWT à révoquer.
-   * @returns Un message de succès.
+   * Logs the user out by adding their token to the blacklist.
+   * @param token - The JWT token to revoke.
+   * @returns A success message.
    */
-  async logout(token: string): Promise<{ message: string }> {
-    // Vérifiez si le token est déjà révoqué
+  async logout(token: string): Promise<boolean> {
+    // Check if the token is already revoked
     const isRevoked = await this.revokedTokenModel.findOne({ token });
     if (isRevoked) {
       throw new UnauthorizedException('Token already revoked');
     }
 
-    // Ajoutez le token à la liste noire
+    // Add the token to the blacklist
     await this.revokedTokenModel.create({ token });
 
-    return { message: 'Logout successful' };
+    return true;
   }
 
   /**
-   * Vérifie si un token est révoqué.
-   * @param token - Le token JWT à vérifier.
-   * @returns True si le token est révoqué, sinon false.
+   * Checks if a token is revoked.
+   * @param token - The JWT token to check.
+   * @returns True if the token is revoked, otherwise False.
    */
   async isTokenRevoked(token: string): Promise<boolean> {
     const revokedToken = await this.revokedTokenModel.findOne({ token });
@@ -144,39 +152,39 @@ export class AuthService {
   }
 
   /**
-   * Envoie un email de réinitialisation de mot de passe.
-   * @param email - L'email de l'utilisateur.
-   * @returns Un message de succès.
+   * Sends a password reset email.
+   * @param email - The user's email address.
+   * @returns a success message.
    */
-  async requestPasswordReset(email: string): Promise<{ message: string }> {
+  async requestPasswordReset(email: string): Promise<boolean> {
     const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Génère un token de réinitialisation de mot de passe (valide pendant 1 heure)
+    // Generates a password reset token (valid for 1 hour)
     const resetToken = this.jwtService.sign(
       { id: user._id },
       { expiresIn: '1h' },
     );
 
-    // Enregistrez le token dans la base de données (optionnel)
+    // Save the token to the database (optional)
     user.resetPasswordToken = resetToken;
     await user.save();
 
-    // Lien de réinitialisation
+    // Reset link
     const resetPwdUrl = `?token=${resetToken}`;
 
     await this.emailService.sendResetPwd(email, 'en', user.name, resetPwdUrl);
 
-    return { message: 'Password reset email sent' };
+    return true;
   }
 
   /**
-   * Réinitialise le mot de passe de l'utilisateur.
-   * @param token - Le token de réinitialisation de mot de passe.
-   * @param newPassword - Le nouveau mot de passe.
-   * @returns Un message de succès.
+   * Resets the user's password.
+   * @param token - The password reset token.
+   * @param newPassword - The new password.
+   * @returns A success message.
    */
   async resetPassword(
     token: string,
@@ -184,7 +192,7 @@ export class AuthService {
   ): Promise<{ message: string }> {
     let userId: string;
 
-    // Validez le token
+    // token validation
     try {
       const decoded = this.jwtService.verify(token);
       userId = decoded.id;
@@ -192,7 +200,7 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired token');
     }
 
-    // Trouvez l'utilisateur et mettez à jour le mot de passe
+    // Find the user and update the password
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -200,7 +208,7 @@ export class AuthService {
 
     const hashedPwd = await bcrypt.hash(newPassword, 10);
     user.password = hashedPwd;
-    user.resetPasswordToken = ''; // Effacez le token de réinitialisation
+    user.resetPasswordToken = ''; // Clear the reset token
     await user.save();
     return { message: 'Password reset successful' };
   }

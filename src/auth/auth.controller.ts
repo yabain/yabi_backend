@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Body, Controller, Post } from '@nestjs/common';
@@ -19,8 +21,16 @@ export class AuthController {
     return this.authService.signIn(authData);
   }
 
+  @Post('/logout')
+  logout(@Body() authData: any): Promise<any> {
+    const token: any = authData.token;
+    return this.authService.logout(token);
+  }
+
   @Post('request-password-reset')
-  async requestPasswordReset(@Body('email') email: string) {
+  async requestPasswordReset(@Body() data: any) {
+    const email = data.email;
+    console.log('email: ', email);
     return this.authService.requestPasswordReset(email);
   }
 

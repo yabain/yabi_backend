@@ -1,6 +1,7 @@
 export const environment = {
   JWT_SECRET: 'thesecretforyabievents',
-  FRONT_URL: 'https://yabi.cm',
+  // FRONT_URL: 'https://yabi.cm',
+  FRONT_URL: 'http://localhost:8100',
   JWT_EXPIRES: '30d',
 
   DB_URL:

@@ -70,7 +70,7 @@ export class EmailService {
     language: string, // 'fr' || 'en'
     userName: string,
     token: string,
-  ): Promise<void> {
+  ): Promise<any> {
     let subject: string = '';
     const templateName = 'reset-pwd';
     if (language === 'fr') {
@@ -89,11 +89,12 @@ export class EmailService {
       userName: userName,
     };
     const html = template(context);
-    await this.transporterSupport.sendMail({
+    await this.transporter.sendMail({
       from: environment.EMAIL_TEAM,
       to: toEmail,
       subject,
       html,
     });
+    return true;
   }
 }

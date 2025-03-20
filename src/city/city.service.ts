@@ -23,8 +23,8 @@ export class CityService {
    * @param query - Query parameters for keyword search and pagination.
    * @returns A list of cities.
    */
-  async findAll(query: Query): Promise<City[]> {
-    const resPerPage = 10;
+  async findAllCities(query: Query): Promise<City[]> {
+    const resPerPage = 10000;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
 

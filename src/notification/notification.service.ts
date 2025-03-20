@@ -67,6 +67,7 @@ export class NotificationService {
       .find({ userToId: userId2 })
       .populate('eventId')
       .populate('userFromId')
+      .sort({ createdAt: -1 }) // Tri par createdAt en ordre décroissant
       .limit(resPerPage)
       .skip(skip);
 
