@@ -34,6 +34,18 @@ export class AuthController {
     return this.authService.requestPasswordReset(email);
   }
 
+  @Post('verify-token')
+  async verifyResetPwdToken(@Body() data: any) {
+    console.log('data: ', data);
+    const token = data.token;
+    console.log('token: ', token);
+    return this.authService.verifyResetPwdToken(token);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() data: any) {
+    return this.authService.resetPassword(data.token, data.password);
+  }
   // @Post('test')
   // async test(@Body('email') email: string) {
   //   return this.authService.testMail(email);

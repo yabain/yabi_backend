@@ -173,9 +173,14 @@ export class AuthService {
     await user.save();
 
     // Reset link
-    const resetPwdUrl = `?token=${resetToken}`;
+    const resetPwdUrl = `;token=${resetToken}`;
 
-    await this.emailService.sendResetPwd(email, 'en', user.name, resetPwdUrl);
+    await this.emailService.sendResetPwd(
+      email,
+      user.language,
+      user.name ? user.name : user.firstName + ' ' + user.lastName,
+      resetPwdUrl,
+    );
 
     return true;
   }
@@ -186,19 +191,11 @@ export class AuthService {
    * @param newPassword - The new password.
    * @returns A success message.
    */
-  async resetPassword(
-    token: string,
-    newPassword: string,
-  ): Promise<{ message: string }> {
-    let userId: string;
-
-    // token validation
-    try {
-      const decoded = this.jwtService.verify(token);
-      userId = decoded.id;
-    } catch (error) {
-      throw new BadRequestException('Invalid or expired token');
-    }
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    let userId: any = await this.verifyResetPwdToken(token);
+    console.log('userId 1: ', userId);
+    userId = userId.userId;
+    console.log('userId2: ', userId);
 
     // Find the user and update the password
     const user = await this.userModel.findById(userId);
@@ -210,6 +207,24 @@ export class AuthService {
     user.password = hashedPwd;
     user.resetPasswordToken = ''; // Clear the reset token
     await user.save();
-    return { message: 'Password reset successful' };
+    await this.revokedTokenModel.create({ token });
+    return true;
+  }
+
+  // token validation
+  async verifyResetPwdToken(token: string): Promise<any> {
+    let userId: string;
+    try {
+      const decoded = this.jwtService.verify(token);
+      userId = decoded.id;
+    } catch (error) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+    const verify = await this.isTokenRevoked(token);
+    if (verify === true) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+
+    return { userId };
   }
 }

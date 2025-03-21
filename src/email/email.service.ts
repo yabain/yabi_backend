@@ -85,8 +85,8 @@ export class EmailService {
     const template = handlebars.compile(templateSource);
 
     const context: any = {
-      resetPwdUrl: environment.FRONT_URL + '/reset-password' + token,
-      userName: userName,
+      userName,
+      resetPwdUrl: environment.FRONT_URL + '/auth-screen/new-password' + token,
     };
     const html = template(context);
     await this.transporter.sendMail({
