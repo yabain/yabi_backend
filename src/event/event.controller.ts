@@ -175,7 +175,7 @@ export class EventController {
    * @param eventId - The ID of the event.
    * @returns The event metadata.
    */
-  @Get(':id/metadata')
+  @Get('metadata/:id')
   async getEventMetadata(@Param('id') eventId: string) {
     const event = await this.eventService.findEventById(eventId);
 

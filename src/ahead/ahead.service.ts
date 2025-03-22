@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -17,20 +16,54 @@ export class AheadService {
     private eventModel: mongoose.Model<Event>,
   ) {}
 
-  async gestAllAheadsEvent(id: any): Promise<Ahead[]> {
-    let aheadId: any = id;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      aheadId = new mongoose.Types.ObjectId(id);
-    }
-
-    const aheads = await this.aheadModel.find({ _id: aheadId }).exec();
+  async getAllAheadEvent(): Promise<any[]> {
+    console.log('getAllAheadEvent');
+    const aheads = await this.aheadModel.find().populate('eventId').exec();
     let res: any[] = [];
     for (const ahead of aheads) {
       const aheadData: any = { ...ahead };
-      const addData = await this.eventModel.find(aheadData.eventId);
+      const addData = aheadData._doc.eventId;
       res = [...res, addData];
     }
 
+    return res;
+  }
+
+  async getAheadEventOfCity(id: any): Promise<any[]> {
+    let cityId: any = id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      cityId = new mongoose.Types.ObjectId(id);
+    }
+
+    const aheads = await this.aheadModel
+      .find({ cityId })
+      .populate('eventId')
+      .exec();
+    let res: any[] = [];
+    for (const ahead of aheads) {
+      const aheadData: any = { ...ahead };
+      const addData = aheadData._doc.eventId;
+      res = [...res, addData];
+    }
+    return res;
+  }
+
+  async getAheadEventOfCountry(id: any): Promise<any[]> {
+    let countryId: any = id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      countryId = new mongoose.Types.ObjectId(id);
+    }
+
+    const aheads = await this.aheadModel
+      .find({ countryId })
+      .populate('eventId')
+      .exec();
+    let res: any[] = [];
+    for (const ahead of aheads) {
+      const aheadData: any = { ...ahead };
+      const addData = aheadData._doc.eventId;
+      res = [...res, addData];
+    }
     return res;
   }
 

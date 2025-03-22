@@ -21,13 +21,6 @@ import { CreateAheadDto } from './create-ahead.dto';
 export class AheadController {
   constructor(private aheadService: AheadService) {}
 
-  @Get(':id')
-  @UseGuards(AuthGuard())
-  @UsePipes(ValidationPipe)
-  async chekIfEventIsInAhead(@Param('id') evenId: string): Promise<any> {
-    return this.aheadService.chekIfEventIsInAheads(evenId);
-  }
-
   @Post('new')
   @UseGuards(AuthGuard())
   @UsePipes(ValidationPipe)
@@ -49,5 +42,27 @@ export class AheadController {
   async removeToAheads(@Param('id') eventId: string, @Req() req): Promise<any> {
     if (!req.user.isAdmin) throw new Error('Unauthorized');
     return this.aheadService.removeToAheads(eventId);
+  }
+
+  @Get('ahead-all')
+  async getAllAheadEvent(): Promise<any> {
+    return this.aheadService.getAllAheadEvent();
+  }
+
+  @Get('ahead-city/:id')
+  async getAheadEventOfCity(@Param('id') cityId: string): Promise<any> {
+    return this.aheadService.getAheadEventOfCity(cityId);
+  }
+
+  @Get('ahead-country/:id')
+  async getAheadEventOfCountry(@Param('id') countryId: string): Promise<any> {
+    return this.aheadService.getAheadEventOfCountry(countryId);
+  }
+
+  @Get(':id')
+  @UseGuards(AuthGuard())
+  @UsePipes(ValidationPipe)
+  async chekIfEventIsInAhead(@Param('id') evenId: string): Promise<any> {
+    return this.aheadService.chekIfEventIsInAheads(evenId);
   }
 }
