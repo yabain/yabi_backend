@@ -12,7 +12,6 @@ import { JwtStrategy } from './jwt.strategy';
 import { HttpModule } from '@nestjs/axios';
 import { RevokedTokenSchema } from '../revoked-token/revoked-token.schema';
 import { EmailService } from 'src/email/email.service';
-import { environment } from 'env';
 
 @Module({
   imports: [
@@ -20,11 +19,11 @@ import { environment } from 'env';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: () => {
+      useFactory: (configService: ConfigService) => {
         return {
-          secret: environment.JWT_SECRET,
+          secret: configService.get('JWT_SECRET'),
           signOptions: {
-            expiresIn: environment.JWT_EXPIRES,
+            expiresIn: configService.get('JWT_EXPIRES'),
           },
         };
       },

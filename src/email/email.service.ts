@@ -1,64 +1,70 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
-import { environment } from 'env';
 
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
   private transporterSupport: nodemailer.Transporter;
-  templateFolder: any = path.join(__dirname, '..', '..', 'email', 'templates');
+  private readonly templateFolder = path.join(
+    __dirname,
+    '..',
+    '..',
+    'email',
+    'templates',
+  );
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      service: environment.EMAIL_SERVICE,
+      service: this.configService.get<string>('EMAIL_SERVICE'),
       auth: {
-        user: environment.EMAIL_TEAM,
-        pass: environment.PASSWORD_TEAM,
+        user: this.configService.get<string>('EMAIL_TEAM'),
+        pass: this.configService.get<string>('PASSWORD_TEAM'),
       },
     });
 
     this.transporterSupport = nodemailer.createTransport({
-      service: environment.EMAIL_SERVICE,
+      service: this.configService.get<string>('EMAIL_SERVICE'),
       auth: {
-        user: environment.EMAIL_SUPPORT,
-        pass: environment.PASSWORD_SUPPORT,
+        user: this.configService.get<string>('EMAIL_SUPPORT'),
+        pass: this.configService.get<string>('PASSWORD_SUPPORT'),
       },
     });
   }
 
   async sendWelcomeEmailAccountCreation(
     toEmail: string,
-    language: string, // 'fr' || 'en'
+    language: string,
     userName: string,
   ): Promise<void> {
     const templateName = 'welcome-email';
-    let subject: string = '';
-    if (language === 'fr') {
-      subject = 'Bienvenue sur Yabi Events';
-    } else subject = 'Welcome to Yabi Events';
+    const subject =
+      language === 'fr'
+        ? 'Bienvenue sur Yabi Events'
+        : 'Welcome to Yabi Events';
+
     const templatePath = path.join(
       this.templateFolder,
       `${templateName}_${language}.hbs`,
     );
-    const context: any = {
-      frontUrl: environment.FRONT_URL,
-      userName: userName,
+
+    const context = {
+      frontUrl: this.configService.get<string>('FRONT_URL'),
+      userName,
     };
 
     const templateSource = fs.readFileSync(templatePath, 'utf8');
     const template = handlebars.compile(templateSource);
-
     const html = template(context);
 
     await this.transporter.sendMail({
-      from: environment.EMAIL_TEAM,
+      from: this.configService.get<string>('EMAIL_TEAM'),
       to: toEmail,
       subject,
       html,
@@ -66,16 +72,15 @@ export class EmailService {
   }
 
   async sendResetPwd(
-    toEmail: string, // User email
-    language: string, // 'fr' || 'en'
+    toEmail: string,
+    language: string,
     userName: string,
     token: string,
-  ): Promise<any> {
-    let subject: string = '';
+  ): Promise<boolean> {
     const templateName = 'reset-pwd';
-    if (language === 'fr') {
-      subject = 'Réinitialisation de Mot de Passe';
-    } else subject = 'Password Reset';
+    const subject =
+      language === 'fr' ? 'Réinitialisation de Mot de Passe' : 'Password Reset';
+
     const templatePath = path.join(
       this.templateFolder,
       `${templateName}_${language}.hbs`,
@@ -84,17 +89,20 @@ export class EmailService {
     const templateSource = fs.readFileSync(templatePath, 'utf8');
     const template = handlebars.compile(templateSource);
 
-    const context: any = {
+    const context = {
       userName,
-      resetPwdUrl: environment.FRONT_URL + '/auth-screen/new-password' + token,
+      resetPwdUrl: `${this.configService.get<string>('FRONT_URL')}/auth-screen/new-password${token}`,
     };
+
     const html = template(context);
+
     await this.transporter.sendMail({
-      from: environment.EMAIL_TEAM,
+      from: this.configService.get<string>('EMAIL_TEAM'),
       to: toEmail,
       subject,
       html,
     });
+
     return true;
   }
 }

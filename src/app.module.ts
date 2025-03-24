@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -15,10 +16,9 @@ import { FavoriteModule } from './favorite/favorite.module';
 import { FollowModule } from './follow/follow.module';
 import { TicketModule } from './ticket/ticket.module';
 import { AheadModule } from './ahead/ahead.module';
-// import { GatewayModule } from './gateway/gateway.module';
 import { RevokedTokenModule } from './revoked-token/revoked-token.module';
 import { EmailModule } from './email/email.module';
-import { environment } from 'env';
+import { ConfigService } from '@nestjs/config';
 import { NotificationModule } from './notification/notification.module';
 
 @Module({
@@ -27,7 +27,12 @@ import { NotificationModule } from './notification/notification.module';
       envFilePath: '.env',
       isGlobal: true,
     }),
-    MongooseModule.forRoot(environment.DB_URL),
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        uri: configService.get<string>('DB_URL'),
+      }),
+    }),
     UserModule,
     AuthModule,
     EventModule,
@@ -43,7 +48,6 @@ import { NotificationModule } from './notification/notification.module';
     RevokedTokenModule,
     EmailModule,
     NotificationModule,
-    // GatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],

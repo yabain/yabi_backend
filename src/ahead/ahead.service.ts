@@ -6,6 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { Ahead } from './ahead.schema';
 import { Event } from '../event/event.schema';
+import { Query } from 'express-serve-static-core';
 
 @Injectable()
 export class AheadService {
@@ -16,14 +17,28 @@ export class AheadService {
     private eventModel: mongoose.Model<Event>,
   ) {}
 
-  async getAllAheadEvent(): Promise<any[]> {
-    console.log('getAllAheadEvent');
-    const aheads = await this.aheadModel.find().populate('eventId').exec();
-    let res: any[] = [];
+  async getAllAheadEvent(query?: Query): Promise<any[]> {
+    let page: number = 1;
+    if (query) page = Number(query.page);
+    const resPerPage = 10;
+    const currentPage = Number(page);
+    const skip = resPerPage * (currentPage - 1);
+
+    const aheads = await this.aheadModel
+      .find()
+      .populate('eventId')
+      .populate('cityId')
+      .populate('countryId')
+      .limit(resPerPage)
+      .skip(skip);
+
+    const res: any[] = [];
     for (const ahead of aheads) {
-      const aheadData: any = { ...ahead };
-      const addData = aheadData._doc.eventId;
-      res = [...res, addData];
+      let eventData: any = { ...ahead.eventId };
+      eventData = eventData._doc;
+      eventData.countryData = ahead.countryId;
+      eventData.cityData = ahead.cityId;
+      res.push(eventData);
     }
 
     return res;

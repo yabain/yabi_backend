@@ -238,7 +238,6 @@ export class EventCategoriesService {
    * @throws NotFoundException if country, city, or ticket classes are not found.
    */
   async getUpcommingEventsOfCategory(categoryId: string, query: Query) {
-    console.log('geting to category: ', categoryId);
     // Check if the category ID is valid
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
       throw new Error('Invalid category ID');
