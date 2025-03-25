@@ -63,23 +63,23 @@ export class TicketController {
   }
 
   //////////////////////////////////////////////
-  // @Get('*')
-  // getRedirect(@Res() res: Response) {
-  //   return res.redirect('https://yabi.cm');
-  // }
+  @Get('*')
+  getRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
 
-  // @Post('*')
-  // postRedirect(@Res() res: Response) {
-  //   return res.redirect('https://yabi.cm');
-  // }
+  @Post('*')
+  postRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
 
-  // @Put('*')
-  // putRedirect(@Res() res: Response) {
-  //   return res.redirect('https://yabi.cm');
-  // }
+  @Put('*')
+  putRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
 
-  // @Delete('*')
-  // deleteRedirect(@Res() res: Response) {
-  //   return res.redirect('https://yabi.cm');
-  // }
+  @Delete('*')
+  deleteRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
 }

@@ -19,6 +19,7 @@ import { EventCategories } from '../event-categories/event-categories.schema';
 import { TicketService } from '../ticket/ticket.service';
 import { UserService } from '../user/user.service';
 import { NotificationService } from 'src/notification/notification.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EventService {
@@ -35,6 +36,7 @@ export class EventService {
     private ticketClassesService: TicketClassesService,
     private TicketService: TicketService,
     private notificationService: NotificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -78,7 +80,7 @@ export class EventService {
 
     // Generate URLs for the uploaded files
     const fileUrls = files.map((file) => {
-      return `${req.protocol}://${req.get('host')}/assets/images/${file.filename}`;
+      return `${this.configService.get<string>('BACK_URL')}/assets/images/${file.filename}`;
     });
 
     // Prepare event data with the user ID and cover image URL
@@ -339,7 +341,7 @@ export class EventService {
 
     // Generate URLs for the uploaded files
     const fileUrls = files.map((file) => {
-      return `${req.protocol}://${req.get('host')}/assets/images/${file.filename}`;
+      return `${this.configService.get<string>('BACK_URL')}/assets/images/${file.filename}`;
     });
 
     // Prepare the update data with the new profile cover URL

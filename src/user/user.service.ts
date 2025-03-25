@@ -17,6 +17,7 @@ import { CreateUserDto } from './create-user.dto';
 import { UpdateUserDto } from './update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { FollowService } from 'src/follow/follow.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UserService {
@@ -24,6 +25,7 @@ export class UserService {
     @InjectModel(User.name)
     private userModel: mongoose.Model<User>,
     private followService: FollowService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -148,7 +150,7 @@ export class UserService {
 
     // Generate URLs for the uploaded files
     const fileUrls = files.map((file) => {
-      return `${req.protocol}://${req.get('host')}/assets/images/${file.filename}`;
+      return `${this.configService.get<string>('BACK_URL')}/assets/images/${file.filename}`;
     });
 
     // Prepare the update data with the new profile picture URL
