@@ -29,7 +29,7 @@ export class FavoriteController {
    * @returns A list of favorite events with additional details.
    */
   @Get('get-favorites-event/:id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication.
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication.
   @UsePipes(ValidationPipe) // Validate the incoming data.
   async gestAllFavoritesEventOfUser(
     @Param('id') eventId: string,
@@ -49,7 +49,7 @@ export class FavoriteController {
    * @returns A boolean indicating whether the event is in the user's favorites.
    */
   @Get(':id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication.
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication.
   @UsePipes(ValidationPipe) // Validate the incoming data.
   async chekIfEventIsInFavorites(
     @Param('id') evenId: string,
@@ -65,7 +65,7 @@ export class FavoriteController {
    * @returns A boolean indicating success.
    */
   @Post('add')
-  @UseGuards(AuthGuard()) // Protect the route with authentication.
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication.
   @UsePipes(ValidationPipe) // Validate the incoming data.
   async addToFavorites(@Body() favorite: any, @Req() req): Promise<any> {
     const favoriteData = {
@@ -82,7 +82,7 @@ export class FavoriteController {
    * @returns A boolean indicating success.
    */
   @Delete(':id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication.
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication.
   @UsePipes(ValidationPipe) // Validate the incoming data.
   async removeToFavorites(
     @Param('id') eventId: string,

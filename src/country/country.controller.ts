@@ -28,7 +28,7 @@ export class CountryController {
   }
 
   @Post('new')
-  @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
+  @UseGuards(AuthGuard('jwt')) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
   @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateUserDto`
   async createCountry(@Body() country: CreateCountryDto): Promise<Country> {
     // console.log('Country creation');
@@ -36,7 +36,7 @@ export class CountryController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
+  @UseGuards(AuthGuard('jwt')) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
   @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateUserDto`
   async deleteCountry(@Param('id') countryId: string): Promise<any> {
     // console.log('Country deletion');
@@ -44,7 +44,7 @@ export class CountryController {
   }
 
   @Put(':id')
-  @UseGuards(AuthGuard()) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
+  @UseGuards(AuthGuard('jwt')) // Applique un garde (guard) pour protéger la route. Ici, `AuthGuard` est utilisé pour vérifier l'authentification.
   @UsePipes(ValidationPipe) // Valide les données entrantes (body) en utilisant le DTO `CreateUserDto`
   async updateCountry(
     @Param('id') countryId: string,

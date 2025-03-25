@@ -7,28 +7,31 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Model } from 'mongoose';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { User } from '../user/user.schema';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    @InjectModel(User.name)
-    private userModel: Model<User>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    config: ConfigService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: 'thesecretforyabievents',
+      ignoreExpiration: false,
+      secretOrKey: config.get('JWT_SECRET'),
+      passReqToCallback: true, // Allows access to the full query
     });
   }
 
-  async validate(payload) {
-    const { id } = payload;
-    const user = await this.userModel.findById(id);
-
+  async validate(req: Request, payload: any) {
+    const user = await this.userModel.findById(payload.id);
     if (!user) {
-      throw new UnauthorizedException(
-        'You need to login to access to this resource',
-      );
+      console.error('User not found for ID:', payload.id);
+      throw new UnauthorizedException();
     }
-    return user;
+
+    const userObj = user.toObject();
+    userObj.password = '';
+    return userObj;
   }
 }

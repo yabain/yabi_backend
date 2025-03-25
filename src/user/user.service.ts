@@ -82,7 +82,7 @@ export class UserService {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
-    }
+    } else user.password = '';
 
     // Get the number of followers and followings
     const followers = await this.followService.getFollowersNumber(userId);
@@ -117,6 +117,10 @@ export class UserService {
     .populate('countryId')
     .populate('cityId');
 
+    if (!user) {
+      throw new NotFoundException('User not found');
+    } else user.password = '';
+
     return user;
   }
 
@@ -140,7 +144,7 @@ export class UserService {
     const user = await this.userModel.findById(req.user._id);
     if (!user) {
       throw new NotFoundException('User not found');
-    }
+    } else user.password = '';
 
     // Generate URLs for the uploaded files
     const fileUrls = files.map((file) => {
@@ -156,6 +160,9 @@ export class UserService {
       userPictureUpdate,
       { new: true, runValidators: true },
     );
+    if (!updatedUser) {
+      throw new NotFoundException('User not found');
+    } else updatedUser.password = '';
 
     return updatedUser;
   }
@@ -199,6 +206,7 @@ export class UserService {
     // Enrich user data with follower counts
     let userArray: any = [];
     for (const user of users) {
+      user.password = '';
       const followers = await this.followService.getFollowersNumber(user._id);
       let userData: any = { ...user };
       userData = userData._doc;

@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -6,10 +9,18 @@ import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.use((req, res, next) => {
+    // console.log('Incoming Request:', {
+    //   method: req.method,
+    //   url: req.url,
+    //   headers: req.headers,
+    //   body: req.body,
+    // });
+    next();
+  });
 
-  // Activer CORS
   app.enableCors({
-    origin: '*', // Autoriser toutes les origines (à adapter en production)
+    origin: ['http://localhost:8100', 'https://app.yabi.cm', 'https://yabi.cm'], // Autorise uniquement ces domaines
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders:
       'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization',

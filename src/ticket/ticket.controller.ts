@@ -31,19 +31,19 @@ export class TicketController {
   }
 
   @Get('myTicket/:id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   async getAllMyTickets(@Param('id') userId: string): Promise<any> {
     return this.ticketService.getAllMyTickets(userId);
   }
 
   @Get('ticketData/:id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   async getTicketData(@Param('id') ticketId: string): Promise<any> {
     return this.ticketService.getTicketData(ticketId);
   }
 
   @Post('new')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
   async createFreeTicket(
     @Body() ticket: CreateTicketDto,
@@ -53,7 +53,7 @@ export class TicketController {
   }
 
   @Get('participantStatus/:id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   async checkParticipantsStatus(
     @Param('id')
     eventId: string,
@@ -63,23 +63,23 @@ export class TicketController {
   }
 
   //////////////////////////////////////////////
-  @Get('*')
-  getRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Get('*')
+  // getRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 
-  @Post('*')
-  postRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Post('*')
+  // postRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 
-  @Put('*')
-  putRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Put('*')
+  // putRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 
-  @Delete('*')
-  deleteRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Delete('*')
+  // deleteRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 }

@@ -22,7 +22,7 @@ export class AheadController {
   constructor(private aheadService: AheadService) {}
 
   @Post('new')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
   async addToFavorites(
     @Body() ahead: CreateAheadDto,
@@ -37,7 +37,7 @@ export class AheadController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
   async removeToAheads(@Param('id') eventId: string, @Req() req): Promise<any> {
     if (!req.user.isAdmin) throw new Error('Unauthorized');
@@ -60,7 +60,7 @@ export class AheadController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
   async chekIfEventIsInAhead(@Param('id') evenId: string): Promise<any> {
     return this.aheadService.chekIfEventIsInAheads(evenId);

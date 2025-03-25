@@ -61,7 +61,7 @@ export class EventController {
    */
   @Post('new')
   @UseInterceptors(FilesInterceptor('file', 1, multerConfig)) // Handle file uploads
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
   async createEvent(
     @Body() event: any,
@@ -85,7 +85,7 @@ export class EventController {
    * @throws Error if the user is not authorized to update the event.
    */
   @Put(':id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
   async update(
     @Param('id') eventId: string,
@@ -105,7 +105,7 @@ export class EventController {
    */
   @Put('picture/:id')
   @UseInterceptors(FilesInterceptor('eventCover', 1, multerConfigForEvent)) // Handle file uploads
-  @UseGuards(AuthGuard())
+  @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
   async updateEventCover(
     @Param('id') eventId: string,
@@ -124,7 +124,7 @@ export class EventController {
    * @returns The result of the deletion operation.
    */
   @Delete(':id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   async delete(@Param('id') eventId: string): Promise<any> {
     return this.eventService.deleteEvent(eventId);
   }
@@ -161,7 +161,7 @@ export class EventController {
    * @returns A list of all events of the user.
    */
   @Get('all-my-events/:id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   async getProgressiveAllEventsOfUser(
     @Param('id') eventId: string,
     @Req() req,

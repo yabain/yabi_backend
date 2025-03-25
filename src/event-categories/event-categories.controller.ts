@@ -40,7 +40,7 @@ export class EventCategoriesController {
    * @throws ConflictException if the category name already exists.
    */
   @Post('new')
-  @UseGuards(AuthGuard()) // Apply authentication guard to protect the route.
+  @UseGuards(AuthGuard('jwt')) // Apply authentication guard to protect the route.
   @UsePipes(ValidationPipe) // Validate the incoming data using the CreateCategoryDto.
   async createCategory(
     @Body() category: CreateCategoryDto,
@@ -55,7 +55,7 @@ export class EventCategoriesController {
    * @throws NotFoundException if the category ID is invalid.
    */
   @Delete(':id')
-  @UseGuards(AuthGuard()) // Apply authentication guard to protect the route.
+  @UseGuards(AuthGuard('jwt')) // Apply authentication guard to protect the route.
   @UsePipes(ValidationPipe) // Validate the incoming data using the CreateCategoryDto.
   async deleteCategory(@Param('id') categoryId: string): Promise<any> {
     return this.categoryService.deleteCategory(categoryId);
@@ -69,7 +69,7 @@ export class EventCategoriesController {
    * @throws NotFoundException if the category ID is invalid.
    */
   @Put(':id')
-  @UseGuards(AuthGuard()) // Apply authentication guard to protect the route.
+  @UseGuards(AuthGuard('jwt')) // Apply authentication guard to protect the route.
   @UsePipes(ValidationPipe) // Validate the incoming data using the CreateCategoryDto.
   async updateCategory(
     @Param('id') categoryId: string,

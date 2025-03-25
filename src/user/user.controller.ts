@@ -39,7 +39,7 @@ export class UserController {
    * @returns A list of users.
    */
   @Get()
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data using the UpdateUserDto
   async getAllUser(@Query() query: ExpressQuery): Promise<User[]> {
     return this.userService.searchByEmail(query);
@@ -73,7 +73,7 @@ export class UserController {
    * @returns The updated user data.
    */
   @Put('update-profile')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data using the UpdateUserDto
   async update(@Body() userData: UpdateUserDto, @Req() req): Promise<any> {
     return this.userService.updateUser(req.user._id, userData);
@@ -88,7 +88,7 @@ export class UserController {
    */
   @Put('picture')
   @UseInterceptors(FilesInterceptor('pictureFile', 1, multerConfigForUser)) // Handle file uploads
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
   async updatePicture(
     @Req() req,
@@ -106,7 +106,7 @@ export class UserController {
    * @returns The result of the deletion operation.
    */
   @Delete(':id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   async delete(@Param('id') userId: string): Promise<any> {
     return this.userService.deleteUser(userId);
   }
@@ -122,23 +122,23 @@ export class UserController {
   }
 
   //////////////////////////////////////////////
-  @Get('*')
-  getRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Get('*')
+  // getRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 
-  @Post('*')
-  postRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Post('*')
+  // postRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 
-  @Put('*')
-  putRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Put('*')
+  // putRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 
-  @Delete('*')
-  deleteRedirect(@Res() res: Response) {
-    return res.redirect('https://yabi.cm');
-  }
+  // @Delete('*')
+  // deleteRedirect(@Res() res: Response) {
+  //   return res.redirect('https://yabi.cm');
+  // }
 }

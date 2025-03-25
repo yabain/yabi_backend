@@ -25,13 +25,14 @@ export class NotificationController {
    * @returns A list of users.
    */
   @Get('my-notifications/:id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe)
   async getNotificationsListOfUser(
     @Query() query: ExpressQuery,
     @Param('id') userId: string,
     @Req() req,
   ): Promise<Notification[]> {
+    console.log("user", req.user);
     return this.notificationService.getNotificationsListOfUser(
       req.user._id,
       query,
@@ -44,7 +45,7 @@ export class NotificationController {
    * @returns A list of users.
    */
   @Put(':id')
-  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe)
   async makeAsReaded(
     @Param('id') notifId: string,
