@@ -12,6 +12,7 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -26,6 +27,7 @@ import { UpdateUserDto } from './update-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { multerConfigForUser } from '..//multer.config';
+import { Response } from 'express';
 
 @Controller('user')
 export class UserController {
@@ -37,6 +39,8 @@ export class UserController {
    * @returns A list of users.
    */
   @Get()
+  @UseGuards(AuthGuard()) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data using the UpdateUserDto
   async getAllUser(@Query() query: ExpressQuery): Promise<User[]> {
     return this.userService.searchByEmail(query);
   }
@@ -115,5 +119,26 @@ export class UserController {
   @Get('research')
   async userResearch(@Query() query: ExpressQuery): Promise<any> {
     return this.userService.searchByName(query);
+  }
+
+  //////////////////////////////////////////////
+  @Get('*')
+  getRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Post('*')
+  postRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Put('*')
+  putRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Delete('*')
+  deleteRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
   }
 }

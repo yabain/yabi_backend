@@ -20,6 +20,7 @@ import { RevokedTokenModule } from './revoked-token/revoked-token.module';
 import { EmailModule } from './email/email.module';
 import { ConfigService } from '@nestjs/config';
 import { NotificationModule } from './notification/notification.module';
+import { MetaModule } from './meta/meta.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { NotificationModule } from './notification/notification.module';
     RevokedTokenModule,
     EmailModule,
     NotificationModule,
+    MetaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

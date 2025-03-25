@@ -1,12 +1,17 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
+  Put,
   Req,
+  Res,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -14,6 +19,7 @@ import {
 import { TicketService } from './ticket.service';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateTicketDto } from './create-ticket.dto';
+import { Response } from 'express';
 
 @Controller('ticket')
 export class TicketController {
@@ -54,5 +60,26 @@ export class TicketController {
     @Req() req,
   ): Promise<any> {
     return this.ticketService.checkParticipantsStatus(eventId, req.user._id);
+  }
+
+  //////////////////////////////////////////////
+  @Get('*')
+  getRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Post('*')
+  postRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Put('*')
+  putRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Delete('*')
+  deleteRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
   }
 }
