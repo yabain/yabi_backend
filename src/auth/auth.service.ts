@@ -193,9 +193,7 @@ export class AuthService {
    */
   async resetPassword(token: string, newPassword: string): Promise<boolean> {
     let userId: any = await this.verifyResetPwdToken(token);
-    console.log('userId 1: ', userId);
     userId = userId.userId;
-    console.log('userId2: ', userId);
 
     // Find the user and update the password
     const user = await this.userModel.findById(userId);

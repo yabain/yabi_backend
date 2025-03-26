@@ -5,15 +5,16 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import * as handlebars from 'handlebars';
-import * as fs from 'fs';
+import { google } from 'googleapis';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as handlebars from 'handlebars';
 import { DateService } from './date.service';
 
+const OAuth2 = google.auth.OAuth2;
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
-  private transporterSupport: nodemailer.Transporter;
   private readonly templateFolder = path.join(
     __dirname,
     '..',
@@ -26,11 +27,47 @@ export class EmailService {
     private readonly configService: ConfigService,
     private dateService: DateService,
   ) {
+    this.initializeTransporter();
+    // this.transporter = nodemailer.createTransport({
+    //   service: this.configService.get<string>('EMAIL_SERVICE'),
+    //   auth: {
+    //     user: this.configService.get<string>('EMAIL_TEAM'),
+    //     pass: this.configService.get<string>('PASSWORD_TEAM'),
+    //   },
+    // });
+  }
+
+  private async initializeTransporter() {
+    const oauth2Client = new OAuth2(
+      this.configService.get<string>('OAUTH_CLIENT_ID'),
+      this.configService.get<string>('OAUTH_CLIENT_SECRET'),
+      this.configService.get<string>('OAUTH_REDIRECT_URL') ||
+        'https://developers.google.com/oauthplayground',
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: this.configService.get<string>('OAUTH_REFRESH_TOKEN'),
+    });
+
+    const accessToken = await new Promise<string>((resolve, reject) => {
+      oauth2Client.getAccessToken((err, token) => {
+        if (err || !token) {
+          reject(new Error('Failed to create access token'));
+          return;
+        }
+        resolve(token.toString());
+      });
+    });
+
     this.transporter = nodemailer.createTransport({
-      service: this.configService.get<string>('EMAIL_SERVICE'),
+      service: 'gmail',
       auth: {
+        type: 'OAuth2',
         user: this.configService.get<string>('EMAIL_TEAM'),
-        pass: this.configService.get<string>('PASSWORD_TEAM'),
+        clientId: this.configService.get<string>('OAUTH_CLIENT_ID'),
+        clientSecret: this.configService.get<string>('OAUTH_CLIENT_SECRET'),
+        refreshToken: this.configService.get<string>('OAUTH_REFRESH_TOKEN'),
+        accessToken: accessToken,
       },
     });
   }

@@ -87,7 +87,6 @@ export class TicketService {
 
     const updatedTicketClass = await this.incrementTaken(ticket.ticketClassId);
 
-    console.log('userData: ', user);
     const ticketData = {
       ...ticket,
       ticketNumber: updatedTicketClass.taken,

@@ -32,7 +32,6 @@ export class NotificationController {
     @Param('id') userId: string,
     @Req() req,
   ): Promise<Notification[]> {
-    console.log("user", req.user);
     return this.notificationService.getNotificationsListOfUser(
       req.user._id,
       query,
