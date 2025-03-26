@@ -122,22 +122,22 @@ export class UserController {
   }
 
   //////////////////////////////////////////////
-  @Get('*')
+  @Get('*path')
   getRedirect(@Res() res: Response) {
     return res.redirect('https://yabi.cm');
   }
 
-  @Post('*')
+  @Post('*path')
   postRedirect(@Res() res: Response) {
     return res.redirect('https://yabi.cm');
   }
 
-  @Put('*')
+  @Put('*path')
   putRedirect(@Res() res: Response) {
     return res.redirect('https://yabi.cm');
   }
 
-  @Delete('*')
+  @Delete('*path')
   deleteRedirect(@Res() res: Response) {
     return res.redirect('https://yabi.cm');
   }

@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/require-await */
+
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -14,6 +15,7 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -27,6 +29,7 @@ import { UpdateEventDto } from './update-event.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { multerConfig, multerConfigForEvent } from '..//multer.config';
+import { Response } from 'express';
 
 @Controller('event')
 export class EventController {
@@ -188,5 +191,26 @@ export class EventController {
       image: event.cover, // Ensure `cover` contains the image URL
       description: event.description,
     };
+  }
+
+  //////////////////////////////////////////////
+  @Get('*path')
+  getRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Post('*path')
+  postRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Put('*path')
+  putRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
+  }
+
+  @Delete('*path')
+  deleteRedirect(@Res() res: Response) {
+    return res.redirect('https://yabi.cm');
   }
 }

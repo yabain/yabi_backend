@@ -17,6 +17,8 @@ import { TicketClassesSchema } from 'src/ticket-classes/ticket-classes.shema';
 import { TicketSchema } from 'src/ticket/ticket.schema';
 import { NotificationSchema } from 'src/notification/notification.schema';
 import { FollowSchema } from 'src/follow/follow.schema';
+import { EmailService } from 'src/email/email.service';
+import { DateService } from 'src/email/date.service';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { FollowSchema } from 'src/follow/follow.schema';
     TicketService,
     NotificationService,
     FollowService,
+    EmailService,
+    DateService,
   ],
 })
 export class MetaModule {}

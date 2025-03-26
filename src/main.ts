@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -9,25 +9,49 @@ import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Middleware de logging (optionnel)
   app.use((req, res, next) => {
-    // console.log('Incoming Request:', {
-    //   method: req.method,
-    //   url: req.url,
-    //   headers: req.headers,
-    //   body: req.body,
-    // });
+    // console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
   });
 
+  // Configuration CORS renforcée
   app.enableCors({
-    origin: ['http://localhost:8100', 'https://app.yabi.cm', 'https://yabi.cm'], // Autorise uniquement ces domaines
+    origin: [
+      'http://localhost:8100', // Ionic en dev
+      'https://yabi.cm', // Production
+      'https://app.yabi.cm', // Production
+      'capacitor://localhost', // Pour les apps mobiles
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders:
-      'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization',
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Requested-With',
+      'Origin',
+    ],
+    exposedHeaders: ['Authorization', 'Content-Length'],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
-  // Activer le ValidationPipe globalement
+  // Gestion spécifique des requêtes OPTIONS
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+      res.header(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, Accept',
+      );
+      return res.status(204).send();
+    }
+    next();
+  });
+
+  // Validation globale
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -36,12 +60,13 @@ async function bootstrap() {
     }),
   );
 
-  // Servir les fichiers statiques depuis le dossier 'assets/images'
+  // Fichiers statiques
   app.useStaticAssets(join(__dirname, '..', '..', 'assets'), {
     prefix: '/assets',
   });
 
   await app.listen(process.env.PORT ?? 3000);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 
 bootstrap();

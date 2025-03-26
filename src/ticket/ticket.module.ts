@@ -11,6 +11,8 @@ import { Ticket, TicketSchema } from './ticket.schema';
 import { TicketClassesService } from 'src/ticket-classes/ticket-classes.service';
 import { City, CitySchema } from 'src/city/city.schema';
 import { Country, CountrySchema } from 'src/country/country.schema';
+import { EmailService } from 'src/email/email.service';
+import { DateService } from 'src/email/date.service';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { Country, CountrySchema } from 'src/country/country.schema';
       { name: 'EventCategories', schema: EventCategoriesSchema },
     ]),
   ],
-  providers: [TicketService, TicketClassesService],
+  providers: [TicketService, TicketClassesService, EmailService, DateService],
   controllers: [TicketController],
 })
 export class TicketModule {}

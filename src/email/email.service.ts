@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -7,6 +8,7 @@ import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { DateService } from './date.service';
 
 @Injectable()
 export class EmailService {
@@ -20,20 +22,15 @@ export class EmailService {
     'templates',
   );
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private dateService: DateService,
+  ) {
     this.transporter = nodemailer.createTransport({
       service: this.configService.get<string>('EMAIL_SERVICE'),
       auth: {
         user: this.configService.get<string>('EMAIL_TEAM'),
         pass: this.configService.get<string>('PASSWORD_TEAM'),
-      },
-    });
-
-    this.transporterSupport = nodemailer.createTransport({
-      service: this.configService.get<string>('EMAIL_SERVICE'),
-      auth: {
-        user: this.configService.get<string>('EMAIL_SUPPORT'),
-        pass: this.configService.get<string>('PASSWORD_SUPPORT'),
       },
     });
   }
@@ -92,6 +89,59 @@ export class EmailService {
     const context = {
       userName,
       resetPwdUrl: `${this.configService.get<string>('FRONT_URL')}/auth-screen/new-password${token}`,
+    };
+
+    const html = template(context);
+
+    await this.transporter.sendMail({
+      from: this.configService.get<string>('EMAIL_TEAM'),
+      to: toEmail,
+      subject,
+      html,
+    });
+
+    return true;
+  }
+
+  async sendEventParticipationEmail(
+    toEmail: string,
+    language: string,
+    userName: string,
+    event: any,
+  ): Promise<boolean> {
+    const templateName = 'participate-free-event';
+    const subject =
+      language === 'fr'
+        ? 'Participation à un événement'
+        : 'Event participation';
+
+    const templatePath = path.join(
+      this.templateFolder,
+      `${templateName}_${language}.hbs`,
+    );
+
+    const templateSource = fs.readFileSync(templatePath, 'utf8');
+    const template = handlebars.compile(templateSource);
+
+    const context = {
+      userName,
+      cover_img: event.eventData.cover,
+      event_title: event.eventData.title,
+      event_category: event.categoryData.name,
+      event_price: event.eventData.paid ? '******* FCFA' : 'Free',
+      event_description: event.eventData.description,
+      event_country: event.countryData.name,
+      event_city: event.cityData.name,
+      event_location: event.eventData.location,
+      event_start:
+        this.dateService.formatDate(event.eventData.dateStart, language) +
+        ' - ' +
+        this.dateService.formatTime(event.eventData.dateStart, language),
+      event_end:
+        this.dateService.formatDate(event.eventData.dateEnd, language) +
+        ' - ' +
+        this.dateService.formatTime(event.eventData.dateEnd, language),
+      event_url: `${this.configService.get<string>('FRONT_URL')}/tabs/events/${event.eventData._id}_shared`,
     };
 
     const html = template(context);

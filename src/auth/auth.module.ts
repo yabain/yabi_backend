@@ -12,6 +12,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { HttpModule } from '@nestjs/axios';
 import { RevokedTokenSchema } from '../revoked-token/revoked-token.schema';
 import { EmailService } from 'src/email/email.service';
+import { DateService } from 'src/email/date.service';
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { EmailService } from 'src/email/email.service';
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, EmailService],
+  providers: [AuthService, JwtStrategy, EmailService, DateService],
   exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}

@@ -17,6 +17,8 @@ import { UserService } from '../user/user.service';
 import { FollowService } from '../follow/follow.service';
 import { NotificationSchema } from '../notification/notification.schema';
 import { NotificationService } from '../notification/notification.service';
+import { EmailService } from 'src/email/email.service';
+import { DateService } from 'src/email/date.service';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { NotificationService } from '../notification/notification.service';
     UserService,
     FollowService,
     NotificationService,
+    EmailService,
+    DateService,
   ],
   exports: [EventService],
 })

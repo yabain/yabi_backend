@@ -450,7 +450,7 @@
                                 <td align="center" style="padding:5px;Margin:0">
                                   <p
                                     style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px;letter-spacing:0;color:#333333;font-size:14px">
-                                    {{userName}} !</p>
+                                    Hello <b>{{userName}}</b> !</p>
                                 </td>
                               </tr>
                               <tr>
@@ -488,11 +488,9 @@
                               style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
                               <tr>
                                 <td align="center"
-                                  style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;font-size:0px"><a
-                                    href="{{event_url}}" target="_blank"
-                                    style="mso-line-height-rule:exactly;text-decoration:underline;color:#1376C8;font-size:14px"><img
-                                      src="{{cover_img}}" alt="" height="262" class="adapt-img"
-                                      style="display:block;font-size:14px;border:0;outline:none;text-decoration:none"></a>
+                                  style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;font-size:0px">
+                                  <img src="{{cover_img}}" alt="" height="262" class="adapt-img"
+                                      style="display:block;font-size:14px;border:0;outline:none;text-decoration:none">
                                 </td>
                               </tr>
                               <tr>
@@ -532,7 +530,7 @@
                                   style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:20px">
                                   <h2
                                     style="Margin:0;font-family:arial, 'helvetica neue', helvetica, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:32px;font-style:normal;font-weight:normal;line-height:38.4px;color:#333333">
-                                    Prix</h2>
+                                    Montant</h2>
                                 </td>
                               </tr>
                               <tr>
@@ -542,7 +540,8 @@
                                     style="Margin:0;font-family:arial, 'helvetica neue', helvetica, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:40px;font-style:normal;font-weight:normal;line-height:48px;color:#333333">
                                     <strong><a target="_blank"
                                         style="mso-line-height-rule:exactly;text-decoration:none;color:#38761d;font-size:30px"
-                                        href="">{{event_price}}</a></strong></h1>
+                                        href="">{{event_price}}</a></strong>
+                                  </h1>
                                 </td>
                               </tr>
                             </table>
@@ -551,6 +550,14 @@
                       </table>
                     </td>
                   </tr>
+                  <tr>
+                    <td>
+                      <b style="margin:0 25px">Description: </b>
+                  <h3
+                    style="margin:0 25px;font-family:arial, 'helvetica neue', helvetica, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:15px;font-style:normal;font-weight:normal;line-height:28px;color:#333333">
+                    {{event_description}}</h3>
+                    </tr>
+                  <tr>
                   <tr>
                     <td align="left" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:20px">
                       <!--[if mso]><table style="width:560px" cellpadding="0" cellspacing="0"><tr><td style="width:270px" valign="top"><![endif]-->
@@ -564,7 +571,7 @@
                                 <td align="left" style="padding:10px;Margin:0">
                                   <p
                                     style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px;letter-spacing:0;color:#333333;font-size:14px">
-                                    Lieu : {{event_location}}</p> <br>{{location}}
+                                    <b>Lieu</b> : {{event_country}} - {{event_city}}</p> <br><a href="{{event_location}}" target="_blank">{{event_location}}</a>
                                 </td>
                               </tr>
                             </table>
@@ -587,7 +594,8 @@
                                   </p>
                                   <p
                                     style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px;letter-spacing:0;color:#333333;font-size:14px">
-                                    <b>Fin :</b> {{event_end}}</p>
+                                    <b>Fin :</b> {{event_end}}
+                                  </p>
                                 </td>
                               </tr>
                             </table>
@@ -618,7 +626,7 @@
                                 <td align="center" style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px">
                                   <p
                                     style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px;letter-spacing:0;color:#333333;font-size:14px">
-                                    En vous inscrivant à cet événement, vous acceptez de partager vos coordonnées avec
+                                    En vous inscrivant à cet événement, vous avez accepté de partager vos coordonnées avec
                                     l'organisateur.
                                   </p>
                                 </td>
