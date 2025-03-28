@@ -3,13 +3,14 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StatusRef } from './transaction.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './transaction.schema';
 import * as mongoose from 'mongoose';
 import { User } from 'src/user/user.schema';
+import { Query } from 'express-serve-static-core';
 
 @Injectable()
 export class TransactionService {
@@ -67,6 +68,65 @@ export class TransactionService {
     }
   }
 
+  async findAll(query: Query): Promise<Transaction[]> {
+    const resPerPage = 10;
+    const currentPage = Number(query.page) || 1;
+    const skip = resPerPage * (currentPage - 1);
+
+    const keyword = query.keyword
+      ? {
+          title: {
+            $regex: query.keyword,
+            $options: 'i',
+          },
+        }
+      : {};
+    const transactions = await this.transactionModel
+      .find({ ...keyword, type: 'public' })
+      .limit(resPerPage)
+      .skip(skip);
+    return transactions;
+  }
+
+  async findById(transactionId: string): Promise<any> {
+    if (!mongoose.Types.ObjectId.isValid(transactionId)) {
+      throw new NotFoundException('Invalid event ID');
+    }
+
+    // Find the transaction and populate related data (user and event)
+    const transaction: any = await this.transactionModel
+      .findById(transactionId)
+      .populate('usereId')
+      .populate('eventId');
+    if (!transaction) {
+      throw new NotFoundException('Event not found');
+    }
+    return transaction;
+  }
+
+  async getTransactionsListOfUser(
+    userId: any,
+    query: Query,
+  ): Promise<Transaction[]> {
+    const resPerPage = 10;
+    const currentPage = Number(query.page) || 1;
+    const skip = resPerPage * (currentPage - 1);
+
+    const keyword = query.keyword
+      ? {
+          title: {
+            $regex: query.keyword,
+            $options: 'i',
+          },
+        }
+      : {};
+    const transactions = await this.transactionModel
+      .find({ ...keyword, userId })
+      .limit(resPerPage)
+      .skip(skip);
+    return transactions;
+  }
+
   private handleRequest(paymentData: any, response: any, userData: User) {
     if (response.data.state === StatusRef.SUCCESS) {
       return this.handleTransactionStateSuccess(
@@ -117,6 +177,7 @@ export class TransactionService {
       ref: responseData.data.ref,
       token: responseData.data.token,
     };
+
     const transaction = this.dataParser(
       transactionData,
       responseData,
@@ -270,5 +331,12 @@ export class TransactionService {
     const id = `IN${randomNum}#${year}${month}${day}${hours}${minutes}${seconds}`;
 
     return id;
+  }
+
+  async deleteTransaction(transactionId: string): Promise<any> {
+    if (!mongoose.Types.ObjectId.isValid(transactionId)) {
+      throw new NotFoundException('Invalid transaction ID');
+    }
+    return await this.transactionModel.findByIdAndDelete(transactionId);
   }
 }
