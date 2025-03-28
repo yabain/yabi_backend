@@ -5,16 +5,12 @@ import { Document } from 'mongoose';
 import { City } from 'src/city/city.schema';
 import { Country } from 'src/country/country.schema';
 import { EventCategories } from 'src/event-categories/event-categories.schema';
+import { TicketClasses } from 'src/ticket-classes/ticket-classes.shema';
 
 export enum EventType {
   PUBLIC = 'public',
   PRIVATE = 'private',
 }
-
-export interface TicketClass {
-  id: string;
-}
-
 @Schema({
   timestamps: true,
 })
@@ -53,7 +49,7 @@ export class Event extends Document {
   type: EventType;
 
   @Prop([{ type: Object }])
-  ticketClasses: TicketClass[];
+  ticketClasses: TicketClasses[];
 
   @Prop()
   description: string;

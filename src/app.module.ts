@@ -21,6 +21,7 @@ import { EmailModule } from './email/email.module';
 import { ConfigService } from '@nestjs/config';
 import { NotificationModule } from './notification/notification.module';
 import { MetaModule } from './meta/meta.module';
+import { TransactionModule } from './transaction/transaction.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { MetaModule } from './meta/meta.module';
     EmailModule,
     NotificationModule,
     MetaModule,
+    TransactionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

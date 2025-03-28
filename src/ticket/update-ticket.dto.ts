@@ -6,8 +6,9 @@ import {
   IsOptional,
 } from 'class-validator';
 import { User } from '../user/user.schema';
-import { Event, TicketClass } from '../event/event.schema';
+import { Event } from '../event/event.schema';
 import { EventCategories } from 'src/event-categories/event-categories.schema';
+import { TicketClasses } from 'src/ticket-classes/ticket-classes.shema';
 
 export class UpdateTicketDto {
   @IsEmpty({ message: 'You cannot pass user id' })
@@ -26,7 +27,7 @@ export class UpdateTicketDto {
 
   @IsString()
   @IsOptional()
-  readonly ticketClassId: TicketClass;
+  readonly ticketClassId: TicketClasses;
 
   @IsNumber()
   @IsOptional()

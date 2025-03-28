@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
+import { TicketClasses } from 'src/ticket-classes/ticket-classes.shema';
 import { User } from '../user/user.schema';
-import { EventType, TicketClass } from './event.schema';
+import { EventType } from './event.schema';
 import {
   IsString,
   IsNotEmpty,
@@ -48,7 +49,7 @@ export class CreateEventDto {
   readonly type: EventType;
 
   @IsNotEmpty()
-  readonly ticketClasses: TicketClass[];
+  readonly ticketClasses: TicketClasses[];
 
   @IsString()
   @IsNotEmpty()

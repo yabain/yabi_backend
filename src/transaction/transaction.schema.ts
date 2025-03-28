@@ -1,0 +1,105 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { TicketClasses } from 'src/ticket-classes/ticket-classes.shema';
+import mongoose from 'mongoose';
+import { User } from 'src/user/user.schema';
+
+export enum TransactionType {
+  DEPOSITE = 'deposit',
+  WITHDRAWAL = 'withdrawal',
+}
+
+export enum Currency {
+  DEPOSITE = 'XAF',
+  WITHDRAWAL = 'EU',
+}
+
+export enum StatusRef {
+  PENDING = 'financial_transaction_pending',
+  ERROR = 'financial_transaction_error',
+  SUCCESS = 'financial_transaction_success',
+}
+
+export enum PaymentMethode {
+  OM = 'ORANGE',
+  MTN = 'MTN',
+  PAYPAL = 'PAYPAL',
+  VISA = 'VISA',
+}
+
+export class TicketClassIdrate {
+  @Prop()
+  price: number;
+
+  @Prop()
+  quantity: number;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'TicketClasses' })
+  ticketClassId: TicketClasses;
+}
+
+@Schema({
+  timestamps: true,
+})
+export class Transaction {
+  @Prop()
+  invoiceRef: string;
+
+  @Prop()
+  payment: number;
+
+  @Prop()
+  paymentMethod: string;
+
+  @Prop()
+  paymentMethodNumber: string;
+
+  @Prop()
+  paymentWithTaxes: number; // as 'amount' in payment API req/res
+
+  @Prop()
+  status: StatusRef; // as 'state' in payment API res
+
+  @Prop()
+  taxes: number;
+
+  @Prop()
+  taxesAmount: number;
+
+  @Prop([{ type: Object }])
+  tickets: TicketClassIdrate[];
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  usereId: User;
+
+  @Prop()
+  usereEmail: string;
+
+  @Prop()
+  userName: string;
+
+  @Prop()
+  userPhone: string;
+
+  @Prop()
+  type: TransactionType;
+
+  @Prop()
+  moneyCode: Currency; // as 'moneyCode' in payment API req/res
+
+  @Prop()
+  titled: string; // as 'raison' in payment API req/res
+
+  @Prop()
+  paymentMode: PaymentMethode; // In payment API req/res
+
+  @Prop()
+  token: string; // In payment API res
+
+  @Prop()
+  ref: string; // In payment API res
+
+  @Prop()
+  message: string; // Deduced from the response code
+}
+
+export const TransactionSchema = SchemaFactory.createForClass(Transaction);

@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty, IsEmpty } from 'class-validator';
 import { EventCategories } from '../event-categories/event-categories.schema';
 import { User } from '../user/user.schema';
-import { TicketClass } from '../event/event.schema';
+import { TicketClasses } from 'src/ticket-classes/ticket-classes.shema';
 
 export class CreateTicketDto {
   @IsEmpty({ message: 'You cannot pass user id' })
@@ -20,5 +20,5 @@ export class CreateTicketDto {
 
   @IsString()
   @IsNotEmpty()
-  readonly ticketClassId: TicketClass;
+  readonly ticketClassId: TicketClasses;
 }

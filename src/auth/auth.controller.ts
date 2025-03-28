@@ -30,15 +30,15 @@ export class AuthController {
   @Post('request-password-reset')
   async requestPasswordReset(@Body() data: any) {
     const email = data.email;
-    console.log('email: ', email);
+    // console.log('email: ', email);
     return this.authService.requestPasswordReset(email);
   }
 
   @Post('verify-token')
   async verifyResetPwdToken(@Body() data: any) {
-    console.log('data: ', data);
+    // console.log('data: ', data);
     const token = data.token;
-    console.log('token: ', token);
+    // console.log('token: ', token);
     return this.authService.verifyResetPwdToken(token);
   }
 
