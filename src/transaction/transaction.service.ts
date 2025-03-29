@@ -1,16 +1,19 @@
-/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { HttpService } from '@nestjs/axios';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { StatusRef } from './transaction.schema';
+import { ReqStatus } from './transaction.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './transaction.schema';
 import * as mongoose from 'mongoose';
 import { User } from 'src/user/user.schema';
 import { Query } from 'express-serve-static-core';
+import { UpdateTransactionDto } from './update-transaction.dto';
 
 @Injectable()
 export class TransactionService {
@@ -20,53 +23,6 @@ export class TransactionService {
     private httpService: HttpService,
     private configService: ConfigService,
   ) {}
-
-  async processPayment(paymentData: any, userData: User): Promise<any> {
-    try {
-      const depositEndPoint =
-        this.configService.get<string>('PAYMENT_GATWAY') + '/payment/pay';
-      const depositData = {
-        amount: paymentData.paymentWithTaxes,
-        type: 'deposit',
-        paymentMode: 'ORANGE',
-        moneyCode: 'XAF',
-        userRef: {
-          fullName: paymentData.userName,
-          account: `${paymentData.paymentMethodeNumber}`,
-        },
-        raison: 'Ticket - Yabi Events',
-        appID: this.configService.get<string>('PAYMENT_GATWAY_KEY'),
-      };
-
-      this.httpService
-        .post(depositEndPoint, depositData, {
-          headers: {
-            Authorization: `Bearer ${this.configService.get<string>('PAYMENT_GATWAY_KEY')}`,
-          },
-        })
-        .subscribe((response: any) => {
-          if (response.statusCode === 201) {
-            return this.handleRequest(response, paymentData, userData);
-          } else
-            return this.handleTransactionStateError(
-              response,
-              paymentData,
-              userData,
-            );
-        });
-    } catch (error) {
-      console.error(
-        'Payment processing error:',
-        error.response?.data || error.message,
-      );
-
-      return {
-        success: false,
-        statusCode: error.statusCode,
-        message: error.message || 'Payment processing failed',
-      };
-    }
-  }
 
   async findAll(query: Query): Promise<Transaction[]> {
     const resPerPage = 10;
@@ -127,82 +83,73 @@ export class TransactionService {
     return transactions;
   }
 
-  private handleRequest(paymentData: any, response: any, userData: User) {
-    if (response.data.state === StatusRef.SUCCESS) {
-      return this.handleTransactionStateSuccess(
-        response,
-        paymentData,
-        userData,
+  async processPayment(paymentData: any, userData: User): Promise<any> {
+    try {
+      const depositEndPoint =
+        this.configService.get<string>('PAYMENT_GATWAY') + '/payment/pay';
+      const depositData = {
+        amount: paymentData.paymentWithTaxes,
+        type: 'deposit',
+        paymentMode: 'ORANGE',
+        moneyCode: 'XAF',
+        userRef: {
+          fullName: paymentData.userName,
+          account: `${paymentData.paymentMethodeNumber}`,
+        },
+        raison: 'Ticket - Yabi Events',
+        appID: this.configService.get<string>('PAYMENT_GATWAY_KEY'),
+      };
+
+      this.httpService
+        .post(depositEndPoint, depositData, {
+          headers: {
+            Authorization: `Bearer ${this.configService.get<string>('PAYMENT_GATWAY_KEY')}`,
+          },
+        })
+        .subscribe((response: any) => {
+          const transaction = this.dataParser(paymentData, response, userData);
+
+          if (response.statusCode === 201) {
+            return this.handleRequest(transaction);
+          } else return this.handleTransactionStateError(transaction);
+        });
+    } catch (error) {
+      console.error(
+        'Payment processing error:',
+        error.response?.data || error.message,
       );
-    } else if (response.data.state === StatusRef.PENDING) {
-      return this.handleTransactionStatePending(
-        response,
-        paymentData,
-        userData,
-      );
-    } else if (response.data.state === StatusRef.ERROR) {
-      return this.handleTransactionStateError(response, paymentData, userData);
+
+      const data = this.dataParser(paymentData, error, userData);
+      const transaction = await this.handleTransactionStateError(data);
+
+      return {
+        success: false,
+        statusCode: error.statusCode,
+        message: error.message || transaction.message,
+      };
+    }
+  }
+
+  private async handleRequest(transactionData): Promise<any> {
+    if (transactionData.reqStatus === ReqStatus.SUCCESS) {
+      return this.handleTransactionStateSuccess(transactionData);
+    } else if (transactionData.reqStatus === ReqStatus.PENDING) {
+      return this.handleTransactionStatePending(transactionData);
+    } else if (transactionData.reqStatus === ReqStatus.ERROR) {
+      return this.handleTransactionStateError(transactionData);
     } else return false;
   }
 
-  private handleTransactionStateSuccess(response, transactionData, userData) {
-    transactionData.ref = {
-      ref: response.data.ref,
-      token: response.data.token,
-    };
-
-    if (response.data.state === 'financial_transaction_pending') {
-      // Save transaction data
-    } else if (response.data.state === 'financial_transaction_error') {
-      // Gestion des erreurs spécifiques de la transaction
-      // this.handleTransactionStateError(response.data);
-    } else {
-      return false;
-    }
-    return {
-      success: response.data.success,
-      transactionRef: response.data.ref,
-      token: response.data.token,
-      message: response.data.message,
-      status: response.data.state,
-    };
+  private async handleTransactionStateSuccess(transactionData) {
+    return await this.updateTransaction(transactionData._id, {
+      reqStatus: ReqStatus.SUCCESS,
+    });
   }
 
-  private handleTransactionStatePending(
-    transactionData: any,
-    responseData: any,
-    userData: User,
-  ) {
-    transactionData.ref = {
-      ref: responseData.data.ref,
-      token: responseData.data.token,
-    };
+  private async handleTransactionStatePending(transactionData): Promise<any> {}
 
-    const transaction = this.dataParser(
-      transactionData,
-      responseData,
-      userData,
-    );
-  }
-
-  private handleTransactionStateError(
-    errorData: any,
-    paymentData: any,
-    userData: User,
-  ) {}
-
-  private interprateErrorCode(errorData: any) {
-    const errorMessages: { [key: number]: string } = {
-      '-201': 'Payer account not found',
-      '-202': 'Receiver account not found',
-      '-200': 'Unknown error',
-      '-204': 'The balance of the payer account is insufficient',
-      '-205': 'Payment method not found',
-      '-206': 'Invalid amount',
-      '-207': 'Waiting for a long time error',
-      '-208': 'Payment rejected by the payer',
-    };
-    return errorMessages[errorData.error] || 'Unknown code error';
+  private async handleTransactionStateError(transactionData): Promise<any> {
+    return await this.transactionModel.create(transactionData);
   }
 
   //   checkTransactionStatus(
@@ -222,15 +169,6 @@ export class TransactionService {
   //       }),
   //     );
   //   }
-
-  // Helper function to pad numbers with leading zeros
-  private padNumber(num: number, size: number): string {
-    let s = num.toString();
-    while (s.length < size) {
-      s = '0' + s;
-    }
-    return s;
-  }
 
   //   chekStatus(res: any, userId: string, invoiceData) {
   //     const updateInvoiceStatus = (status: string, errorMsg?: string) => {
@@ -288,13 +226,27 @@ export class TransactionService {
   //   }
 
   dataParser(transactionData: any, responseData: any, userData: any) {
+    if (responseData.data.statusCode === 401)
+      responseData.data.message = 'Unauthorised request';
+    else if (responseData.data.statusCode === 404)
+      responseData.data.message = 'APP id not found';
+    else if (responseData.data.statusCode > 500)
+      responseData.data.message = 'Internal server error';
+    else
+      responseData.data.message =
+        responseData.data.error != 0
+          ? this.interprateErrorCode(Number(responseData.data.error))
+          : ''; // Deduced from the response code
+
     return {
       invoiceRef: this.generateRef(),
       payment: transactionData.payment,
       paymentMethod: transactionData.paymentMethod,
       paymentMethodNumber: transactionData.paymentMethodNumber,
       paymentWithTaxes: transactionData.paymentWithTaxes, // as 'amount' in payment API req/re
-      StatusRef: responseData.state, // as 'state' in payment API res
+      reqStatus: responseData.data.state
+        ? responseData.data.state
+        : ReqStatus.ERROR, // as data.state in payment API res
       taxes: transactionData.taxes,
       taxesAmount: transactionData.taxesAmount,
       tickets: transactionData.tickets,
@@ -303,13 +255,16 @@ export class TransactionService {
       userName: transactionData.userName,
       userPhone: userData.phone,
       type: transactionData.type,
-      moneyCode: transactionData.moneyCode, // as 'moneyCode' in payment API req/res
-      titled: responseData.raison, // as 'raison' in payment API req/res
+      moneyCode: transactionData.moneyCode, // as data.moneyCode in payment API req/res
+      titled: responseData.data.raison
+        ? responseData.data.raison
+        : 'Ticket - Yabi Events', // as data.raison in payment API req/res
       paymentMode: transactionData.paymentMethode, // In payment API req/res
-      token: responseData.token ? responseData.token : '', // In payment API res
-      ref: responseData.ref, // In payment API res
-      message:
-        responseData.error != 0 ? this.interprateErrorCode(responseData) : '', // Deduced from the response code
+      token: responseData.data.token ? responseData.data.token : '', // In payment API res
+      ref: responseData.data.ref ? responseData.data.ref : '', // In payment API res
+      message: responseData.data.message ? responseData.data.message : '',
+      reqStatusCode: responseData.statusCode, // as statusCode in payment API res
+      reqErrorCode: responseData.data.error ? responseData.data.error : '', // data.error in payment API res
     };
   }
 
@@ -333,10 +288,53 @@ export class TransactionService {
     return id;
   }
 
+  // Helper function to pad numbers with leading zeros
+  private padNumber(num: number, size: number): string {
+    let s = num.toString();
+    while (s.length < size) {
+      s = '0' + s;
+    }
+    return s;
+  }
+
+  private interprateErrorCode(errorCode: number) {
+    const errorMessages: { [key: number]: string } = {
+      '-201': 'Payer account not found',
+      '-202': 'Receiver account not found',
+      '-200': 'Unknown error',
+      '-204': 'The balance of the payer account is insufficient',
+      '-205': 'Payment method not found',
+      '-206': 'Invalid amount',
+      '-207': 'Waiting for a long time error',
+      '-208': 'Payment rejected by the payer',
+    };
+    return errorMessages[errorCode] || 'Unknown code error';
+  }
+
   async deleteTransaction(transactionId: string): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(transactionId)) {
       throw new NotFoundException('Invalid transaction ID');
     }
     return await this.transactionModel.findByIdAndDelete(transactionId);
+  }
+
+  async updateTransaction(
+    transactionId: string,
+    transactionData: any,
+  ): Promise<any> {
+    if (!mongoose.Types.ObjectId.isValid(transactionId)) {
+      throw new NotFoundException('Invalid event ID');
+    }
+
+    const event = await this.transactionModel.findByIdAndUpdate(
+      transactionId,
+      transactionData,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    return event;
   }
 }

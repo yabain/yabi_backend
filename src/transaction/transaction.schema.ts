@@ -13,7 +13,7 @@ export enum Currency {
   WITHDRAWAL = 'EU',
 }
 
-export enum StatusRef {
+export enum ReqStatus {
   PENDING = 'financial_transaction_pending',
   ERROR = 'financial_transaction_error',
   SUCCESS = 'financial_transaction_success',
@@ -57,7 +57,7 @@ export class Transaction {
   paymentWithTaxes: number; // as 'amount' in payment API req/res
 
   @Prop()
-  status: StatusRef; // as 'state' in payment API res
+  reqStatus: ReqStatus; // as 'state' in payment API res
 
   @Prop()
   taxes: number;
@@ -97,6 +97,12 @@ export class Transaction {
 
   @Prop()
   ref: string; // In payment API res
+
+  @Prop()
+  reqStatusCode: number; // statusCode in payment API res
+
+  @Prop()
+  reqErrorCode: number; // data.error in payment API res
 
   @Prop()
   message: string; // Deduced from the response code

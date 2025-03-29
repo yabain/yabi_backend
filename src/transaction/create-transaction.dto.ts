@@ -11,7 +11,7 @@ import { User } from 'src/user/user.schema';
 import {
   Currency,
   PaymentMethode,
-  StatusRef,
+  ReqStatus,
   TicketClassIdrate,
   TransactionType,
 } from './transaction.schema';
@@ -37,11 +37,11 @@ export class CreateTransactionDto {
   @IsNotEmpty()
   readonly paymentWithTaxes: number; // as 'amount' in payment API req/re
 
-  @IsEnum(StatusRef, {
-    message: 'Enter corect StatusRef',
+  @IsEnum(ReqStatus, {
+    message: 'Enter corect ReqStatus',
   })
   @IsNotEmpty()
-  readonly StatusRef: StatusRef; // as 'state' in payment API res
+  readonly reqStatus: ReqStatus; // as 'state' in payment API res
 
   @IsString()
   @IsNotEmpty()
@@ -95,6 +95,12 @@ export class CreateTransactionDto {
 
   @IsNotEmpty()
   readonly ref: string; // In payment API res
+
+  @IsOptional()
+  readonly reqStatusCode: number; // statusCode in payment API res
+
+  @IsOptional()
+  readonly reqErrorCode: number; // data.error in payment API res
 
   @IsOptional()
   readonly message: string; // Deduced from the response code
