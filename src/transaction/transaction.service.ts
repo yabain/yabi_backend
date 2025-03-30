@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-misused-promises */
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -13,7 +14,9 @@ import { Transaction } from './transaction.schema';
 import * as mongoose from 'mongoose';
 import { User } from 'src/user/user.schema';
 import { Query } from 'express-serve-static-core';
-import { UpdateTransactionDto } from './update-transaction.dto';
+import { CreateTransactionDto } from './create-transaction.dto';
+import { catchError, firstValueFrom, Observable, tap, throwError } from 'rxjs';
+import { TicketService } from 'src/ticket/ticket.service';
 
 @Injectable()
 export class TransactionService {
@@ -22,6 +25,7 @@ export class TransactionService {
     private transactionModel: mongoose.Model<Transaction>,
     private httpService: HttpService,
     private configService: ConfigService,
+    private ticketService: TicketService,
   ) {}
 
   async findAll(query: Query): Promise<Transaction[]> {
@@ -85,8 +89,7 @@ export class TransactionService {
 
   async processPayment(paymentData: any, userData: User): Promise<any> {
     try {
-      const depositEndPoint =
-        this.configService.get<string>('PAYMENT_GATWAY') + '/payment/pay';
+      const depositEndPoint = `${this.configService.get<string>('PAYMENT_GATWAY')}/payment/pay`;
       const depositData = {
         amount: paymentData.paymentWithTaxes,
         type: 'deposit',
@@ -100,75 +103,140 @@ export class TransactionService {
         appID: this.configService.get<string>('PAYMENT_GATWAY_KEY'),
       };
 
-      this.httpService
-        .post(depositEndPoint, depositData, {
+      const response = await firstValueFrom(
+        this.httpService.post(depositEndPoint, depositData, {
           headers: {
             Authorization: `Bearer ${this.configService.get<string>('PAYMENT_GATWAY_KEY')}`,
           },
-        })
-        .subscribe((response: any) => {
-          const transaction = this.dataParser(paymentData, response, userData);
+        }),
+      );
 
-          if (response.statusCode === 201) {
-            return this.handleRequest(transaction);
-          } else return this.handleTransactionStateError(transaction);
-        });
+      const transaction = this.dataParser(paymentData, response.data, userData);
+
+      return this.handleRequest(transaction, userData);
     } catch (error) {
       console.error(
         'Payment processing error:',
         error.response?.data || error.message,
       );
 
-      const data = this.dataParser(paymentData, error, userData);
-      const transaction = await this.handleTransactionStateError(data);
+      const transaction = this.dataParser(
+        paymentData,
+        error.response?.data || {},
+        userData,
+      );
+      await this.handleTransactionStateError(transaction);
 
       return {
         success: false,
-        statusCode: error.statusCode,
-        message: error.message || transaction.message,
+        statusCode: error.response?.status || 500,
+        message: error.message || 'Payment processing failed',
       };
     }
   }
 
-  private async handleRequest(transactionData): Promise<any> {
+  private async handleRequest(transactionData, userData): Promise<any> {
+    console.log('handleRequest: ', transactionData);
     if (transactionData.reqStatus === ReqStatus.SUCCESS) {
-      return this.handleTransactionStateSuccess(transactionData);
+      console.log('SUCCESS: ', ReqStatus.SUCCESS);
+      return this.handleTransactionStateSuccess(transactionData, userData);
     } else if (transactionData.reqStatus === ReqStatus.PENDING) {
-      return this.handleTransactionStatePending(transactionData);
+      console.log('PENDING: ', ReqStatus.PENDING);
+      return this.handleTransactionStatePending(transactionData, userData);
     } else if (transactionData.reqStatus === ReqStatus.ERROR) {
+      console.log('ERROR: ', ReqStatus.ERROR);
       return this.handleTransactionStateError(transactionData);
-    } else return false;
+    } else
+      return {
+        success: false,
+        statusCode: 501,
+        message: 'Unknow error',
+      };
   }
 
-  private async handleTransactionStateSuccess(transactionData) {
+  private async handleTransactionStateSuccess(transactionData, userData) {
+    const transaction = await this.ticketService.createMultipleTicket(
+      transactionData.tickets,
+      userData,
+    );
+    if (!transaction) throw new NotFoundException('Error');
     return await this.updateTransaction(transactionData._id, {
       reqStatus: ReqStatus.SUCCESS,
+      message: transactionData.message ? transactionData.message : '',
+      reqErrorCode: transactionData.reqErrorCode
+        ? transactionData.reqErrorCode
+        : '',
     });
   }
 
-  private async handleTransactionStatePending(transactionData): Promise<any> {}
+  private async handleTransactionStatePending(
+    transactionData,
+    userData,
+  ): Promise<any> {
+    if (transactionData._id) {
+      const transaction = await this.findById(transactionData._id);
+      if (transaction) {
+        return await this.updateTransaction(transactionData._id, {
+          reqStatus: ReqStatus.PENDING,
+          message: transactionData.message ? transactionData.message : '',
+          reqErrorCode: transactionData.reqErrorCode
+            ? transactionData.reqErrorCode
+            : '',
+        });
+      } else throw new NotFoundException('Transaction not found');
+    } else {
+      setTimeout(() => {
+        this.checkTransaction(transactionData, userData);
+      }, 5000);
+      return await this.createTransaction(transactionData);
+    }
+  }
 
   private async handleTransactionStateError(transactionData): Promise<any> {
+    if (transactionData._id) {
+      const transaction = await this.findById(transactionData._id);
+      if (transaction) {
+        return await this.updateTransaction(transactionData._id, {
+          reqStatus: ReqStatus.ERROR,
+          message: transactionData.message ? transactionData.message : '',
+          reqErrorCode: transactionData.reqErrorCode
+            ? transactionData.reqErrorCode
+            : '',
+        });
+      } else throw new NotFoundException('Transaction not found');
+    }
+    return await this.createTransaction(transactionData);
+  }
+
+  private async createTransaction(
+    transactionData: CreateTransactionDto,
+  ): Promise<any> {
     return await this.transactionModel.create(transactionData);
   }
 
-  //   checkTransactionStatus(
-  //     paymentRef: string,
-  //     invoiceId?: string,
-  //   ): Observable<any> {
-  //     // console.log('paymentRef: ', paymentRef);
-  //     const checkDepositEndPoint =
-  //       environment.apiUrl + '/payment/check/' + paymentRef;
+  checkTransaction(transactionData: any, userData): Observable<any> {
+    console.log('transactionData: ', transactionData.token);
+    const checkDepositEndPoint =
+      this.configService.get<string>('PAYMENT_GATWAY') +
+      '/payment/check/' +
+      transactionData.token;
 
-  //     return this.http.get<any>(checkDepositEndPoint).pipe(
-  //       tap((response) => {
-  //         return response;
-  //       }),
-  //       catchError((error) => {
-  //         return throwError(error);
-  //       }),
-  //     );
-  //   }
+    return this.httpService.get<any>(checkDepositEndPoint).pipe(
+      tap((response: any) => {
+        if (response.statusCode === 200) {
+          if (response.data.state === ReqStatus.SUCCESS)
+            this.handleTransactionStateSuccess(
+              this.dataParser(transactionData, response, userData),
+              userData,
+            );
+        }
+        return response;
+      }),
+      catchError((error) => {
+        return throwError(error);
+      }),
+    );
+  }
 
   //   chekStatus(res: any, userId: string, invoiceData) {
   //     const updateInvoiceStatus = (status: string, errorMsg?: string) => {
@@ -323,10 +391,10 @@ export class TransactionService {
     transactionData: any,
   ): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(transactionId)) {
-      throw new NotFoundException('Invalid event ID');
+      throw new NotFoundException('Invalid transaction ID');
     }
 
-    const event = await this.transactionModel.findByIdAndUpdate(
+    const transaction = await this.transactionModel.findByIdAndUpdate(
       transactionId,
       transactionData,
       {
@@ -335,6 +403,8 @@ export class TransactionService {
       },
     );
 
-    return event;
+    if (!transaction) throw new NotFoundException('Invalid transaction ID');
+
+    return transaction;
   }
 }

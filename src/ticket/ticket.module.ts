@@ -31,5 +31,6 @@ import { DateService } from 'src/email/date.service';
   ],
   providers: [TicketService, TicketClassesService, EmailService, DateService],
   controllers: [TicketController],
+  exports: [TicketService],
 })
 export class TicketModule {}

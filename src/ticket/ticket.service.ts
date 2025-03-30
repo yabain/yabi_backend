@@ -146,6 +146,13 @@ export class TicketService {
     return createdTicket;
   }
 
+  async createMultipleTicket(ticketArray: any[], userData): Promise<boolean>{
+    for (const ticket of ticketArray) {
+      await this.createFreeTicket(ticket, userData);
+    }
+    return true;
+  }
+
   async incrementTaken(ticketClassId: string): Promise<any> {
     return this.ticketClassesModel
       .findByIdAndUpdate(
