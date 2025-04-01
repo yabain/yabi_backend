@@ -142,6 +142,7 @@ export class EventService {
     const eventData: any = { ...event._doc };
     const user: any = userData;
     user.password = ''; // Remove password for security
+    user.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
     eventData.autorData = user;
     eventData.ticketClasses = ticketClasses;
 

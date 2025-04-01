@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/require-await */
+
 import {
   BadRequestException,
   Body,
@@ -40,8 +40,14 @@ export class TransactionController {
    * @returns The transaction details.
    */
   @Get(':id')
-  async getTransaction(@Param('id') transactionId: string): Promise<any> {
-    return this.transactionService.findById(transactionId);
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
+  async getTransactionData(
+    @Param('id') transactionId: string,
+    @Req() req,
+  ): Promise<any> {
+    console.log('found transaction: ', transactionId);
+    return this.transactionService.findById(transactionId, req.user);
   }
 
   /**
@@ -55,6 +61,7 @@ export class TransactionController {
   @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
   async processPayment(@Body() transactionData: any, @Req() req): Promise<any> {
+    console.log('Data from frontend: ', transactionData);
     return this.transactionService.processPayment(transactionData, req.user);
   }
 
@@ -84,7 +91,7 @@ export class TransactionController {
     return this.transactionService.getTransactionsListOfUser(userId, query);
   }
 
-  //////////////////////////////////////////////
+  //////////////////////////////////////////
   @Get('*path')
   getRedirect(@Res() res: Response) {
     return res.redirect('https://yabi.cm');

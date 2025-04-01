@@ -73,6 +73,7 @@ export class AuthService {
       }
 
       user.password = '';
+      user.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
 
       let userName: string = '';
       if (user.firstName && user.firstName != '' && user.firstName != null) {
@@ -118,6 +119,7 @@ export class AuthService {
     }
 
     user.password = ''; // Remove the password from the response for security
+    user.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
 
     // Return the user data and a JWT token for authentication
     return { userData: user, token: this.jwtService.sign({ id: user._id }) };

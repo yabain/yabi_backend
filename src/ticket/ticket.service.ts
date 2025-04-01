@@ -66,7 +66,11 @@ export class TicketService {
     return tickets;
   }
 
-  async createFreeTicket(ticket: CreateTicketDto, user: User): Promise<any> {
+  async createFreeTicket(
+    ticket: CreateTicketDto,
+    user: User,
+    sendMail?: boolean,
+  ): Promise<any> {
     const ticketClassData = await this.ticketClassesModel.findById(
       ticket.ticketClassId,
     );
@@ -82,7 +86,7 @@ export class TicketService {
     }
 
     if (typeof ticket.ticketClassId !== 'string') {
-      throw new BadRequestException('Invalid ticket class ID');
+      throw new BadRequestException('Invalid ticketClass ID');
     }
 
     const updatedTicketClass = await this.incrementTaken(ticket.ticketClassId);
@@ -105,7 +109,7 @@ export class TicketService {
         .populate('categoryId')
         .exec();
 
-      if (eventData && user.email) {
+      if (eventData && user.email && sendMail) {
         await this.emailService.sendEventParticipationEmail(
           user.email,
           user.language || 'en', // Valeur par défaut si language non défini
@@ -146,9 +150,19 @@ export class TicketService {
     return createdTicket;
   }
 
-  async createMultipleTicket(ticketArray: any[], userData): Promise<boolean>{
+  async createMultipleTicket(transactionData: any, userData): Promise<boolean> {
+    const ticketArray: any[] = transactionData.tickets;
     for (const ticket of ticketArray) {
-      await this.createFreeTicket(ticket, userData);
+      const ticketData: CreateTicketDto = {
+        eventId: transactionData.eventId,
+        categoryId: transactionData.categoryId,
+        ticketClassId: ticket.ticketClassId,
+        userId: userData._id,
+      };
+      const quantity: number = ticket.quantity;
+      for (let i = 0; i < quantity; i++) {
+        await this.createFreeTicket(ticketData, userData, false);
+      }
     }
     return true;
   }

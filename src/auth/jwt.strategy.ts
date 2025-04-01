@@ -32,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const userObj = user.toObject();
     userObj.password = '';
+    userObj.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
     return userObj;
   }
 }

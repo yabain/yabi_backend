@@ -1,5 +1,9 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-misused-promises */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -15,7 +19,7 @@ import * as mongoose from 'mongoose';
 import { User } from 'src/user/user.schema';
 import { Query } from 'express-serve-static-core';
 import { CreateTransactionDto } from './create-transaction.dto';
-import { catchError, firstValueFrom, Observable, tap, throwError } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { TicketService } from 'src/ticket/ticket.service';
 
 @Injectable()
@@ -48,7 +52,7 @@ export class TransactionService {
     return transactions;
   }
 
-  async findById(transactionId: string): Promise<any> {
+  async findById(transactionId: string, userData: User): Promise<Transaction> {
     if (!mongoose.Types.ObjectId.isValid(transactionId)) {
       throw new NotFoundException('Invalid event ID');
     }
@@ -56,11 +60,21 @@ export class TransactionService {
     // Find the transaction and populate related data (user and event)
     const transaction: any = await this.transactionModel
       .findById(transactionId)
-      .populate('usereId')
+      .populate('userId')
       .populate('eventId');
+    console.log('transac: ', transaction);
     if (!transaction) {
+      throw new NotFoundException('transaction not found');
+    }
+    transaction.userId.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
+    transaction.userId.password = ''; // Remove the password from the response for security
+    const user = transaction.userId;
+    console.log('user 111: ', user);
+    if (user._id != userData._id && !userData.isAdmin) {
       throw new NotFoundException('Event not found');
     }
+
+    console.log('transac 111: ', transaction);
     return transaction;
   }
 
@@ -88,21 +102,23 @@ export class TransactionService {
   }
 
   async processPayment(paymentData: any, userData: User): Promise<any> {
+    console.log('paymentData.paymentWithTaxes: ', paymentData.paymentWithTaxes);
     try {
       const depositEndPoint = `${this.configService.get<string>('PAYMENT_GATWAY')}/payment/pay`;
       const depositData = {
-        amount: paymentData.paymentWithTaxes,
+        amount: Number(paymentData.paymentWithTaxes),
         type: 'deposit',
         paymentMode: 'ORANGE',
         moneyCode: 'XAF',
         userRef: {
           fullName: paymentData.userName,
-          account: `${paymentData.paymentMethodeNumber}`,
+          account: `${paymentData.paymentMethodNumber}`,
         },
         raison: 'Ticket - Yabi Events',
         appID: this.configService.get<string>('PAYMENT_GATWAY_KEY'),
       };
 
+      console.log('depositData: ', depositData);
       const response = await firstValueFrom(
         this.httpService.post(depositEndPoint, depositData, {
           headers: {
@@ -110,6 +126,7 @@ export class TransactionService {
           },
         }),
       );
+      console.log('la rest du payment: ', response);
 
       const transaction = this.dataParser(paymentData, response.data, userData);
 
@@ -120,19 +137,60 @@ export class TransactionService {
         error.response?.data || error.message,
       );
 
-      const transaction = this.dataParser(
-        paymentData,
-        error.response?.data || {},
-        userData,
-      );
+      const transaction = this.dataParser(paymentData, error || {}, userData);
       await this.handleTransactionStateError(transaction);
 
       return {
         success: false,
-        statusCode: error.response?.status || 500,
+        statusCode: error.statusCode || 500,
         message: error.message || 'Payment processing failed',
       };
     }
+  }
+
+  async checkTransactionLoop(
+    transactionData: any,
+    userData: User,
+  ): Promise<void> {
+    let attempts = 0;
+    const maxAttempts = 24; //After 2 minutes (24 x 5s)
+
+    const checkStatus = async () => {
+      try {
+        const checkDepositEndPoint = `${this.configService.get<string>('PAYMENT_GATWAY')}/payment/check/${transactionData.token}`;
+        const response: any = await firstValueFrom(
+          this.httpService.get<any>(checkDepositEndPoint),
+        );
+
+        if (response.statusCode === 201) {
+          const newTransactionData = this.dataParser(
+            transactionData,
+            response,
+            userData,
+          );
+
+          if (newTransactionData.reqStatus === ReqStatus.SUCCESS) {
+            return await this.handleTransactionStateSuccess(
+              newTransactionData,
+              userData,
+            );
+          } else if (newTransactionData.reqStatus === ReqStatus.ERROR) {
+            return await this.handleTransactionStateError(newTransactionData);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking transaction: ', error.message);
+      }
+
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(checkStatus, 5000); // Vérifie à nouveau dans 5 secondes
+      } else {
+        console.warn('Max attempts reached, stopping transaction check.');
+      }
+    };
+
+    checkStatus();
   }
 
   private async handleRequest(transactionData, userData): Promise<any> {
@@ -149,24 +207,29 @@ export class TransactionService {
     } else
       return {
         success: false,
-        statusCode: 501,
+        status: 'Error',
         message: 'Unknow error',
       };
   }
 
-  private async handleTransactionStateSuccess(transactionData, userData) {
-    const transaction = await this.ticketService.createMultipleTicket(
-      transactionData.tickets,
-      userData,
-    );
-    if (!transaction) throw new NotFoundException('Error');
-    return await this.updateTransaction(transactionData._id, {
-      reqStatus: ReqStatus.SUCCESS,
-      message: transactionData.message ? transactionData.message : '',
-      reqErrorCode: transactionData.reqErrorCode
-        ? transactionData.reqErrorCode
-        : '',
-    });
+  private async handleTransactionStateSuccess(
+    transactionData,
+    userData,
+  ): Promise<any> {
+    if (transactionData && transactionData.reqStatus === ReqStatus.PENDING) {
+      transactionData = await this.updateTransaction(transactionData._id, {
+        reqStatus: ReqStatus.SUCCESS,
+        message: transactionData.message ? transactionData.message : '',
+        reqErrorCode: '',
+      });
+    }
+    // this.ticketService.createMultipleTicket(transactionData, userData);
+
+    return {
+      success: true,
+      status: 'Success',
+      transactionData: transactionData,
+    };
   }
 
   private async handleTransactionStatePending(
@@ -174,38 +237,74 @@ export class TransactionService {
     userData,
   ): Promise<any> {
     if (transactionData._id) {
-      const transaction = await this.findById(transactionData._id);
+      const transaction = await this.transactionModel.findById(
+        transactionData._id,
+      );
       if (transaction) {
-        return await this.updateTransaction(transactionData._id, {
-          reqStatus: ReqStatus.PENDING,
-          message: transactionData.message ? transactionData.message : '',
-          reqErrorCode: transactionData.reqErrorCode
-            ? transactionData.reqErrorCode
-            : '',
-        });
+        // await this.updateTransaction(transactionData._id, {
+        //   reqStatus: ReqStatus.PENDING,
+        //   message: transactionData.message || '',
+        //   reqErrorCode: transactionData.reqErrorCode || '',
+        // });
+
+        if (transaction.reqStatus === ReqStatus.PENDING)
+          this.checkTransactionLoop(transactionData, userData);
+        return {
+          success: true,
+          status: 'Pending',
+          transactionData: transaction,
+        };
       } else throw new NotFoundException('Transaction not found');
     } else {
-      setTimeout(() => {
-        this.checkTransaction(transactionData, userData);
-      }, 5000);
-      return await this.createTransaction(transactionData);
+      const newTransaction = await this.createTransaction(transactionData);
+      if (!newTransaction) {
+        throw new NotFoundException('Error to create transaction');
+      }
+      this.checkTransactionLoop(newTransaction, userData);
+      return {
+        success: true,
+        status: 'Pending',
+        transactionData: newTransaction,
+      };
     }
   }
 
   private async handleTransactionStateError(transactionData): Promise<any> {
     if (transactionData._id) {
-      const transaction = await this.findById(transactionData._id);
-      if (transaction) {
-        return await this.updateTransaction(transactionData._id, {
-          reqStatus: ReqStatus.ERROR,
-          message: transactionData.message ? transactionData.message : '',
-          reqErrorCode: transactionData.reqErrorCode
-            ? transactionData.reqErrorCode
-            : '',
-        });
+      const transaction = await this.transactionModel.findById(
+        transactionData._id,
+      );
+      if (transaction && transaction.reqStatus === ReqStatus.PENDING) {
+        const transactionUpdate: any = await this.updateTransaction(
+          transactionData._id,
+          {
+            reqStatus: ReqStatus.ERROR,
+            message: transactionData.message ? transactionData.message : '',
+            reqErrorCode: transactionData.reqErrorCode
+              ? transactionData.reqErrorCode
+              : '',
+          },
+        );
+        return {
+          success: true,
+          status: 'Rejected',
+          transactionData: transactionUpdate,
+        };
+      } else if (transaction && transaction.reqStatus === ReqStatus.ERROR) {
+        return {
+          success: true,
+          status: 'Rejected',
+          transactionData: transaction,
+        };
       } else throw new NotFoundException('Transaction not found');
     }
-    return await this.createTransaction(transactionData);
+    transactionData.reqStatus === ReqStatus.ERROR;
+    const transaction: any = await this.createTransaction(transactionData);
+    return {
+      success: true,
+      status: 'Rejected',
+      transactionData: transaction,
+    };
   }
 
   private async createTransaction(
@@ -214,92 +313,50 @@ export class TransactionService {
     return await this.transactionModel.create(transactionData);
   }
 
-  checkTransaction(transactionData: any, userData): Observable<any> {
-    console.log('transactionData: ', transactionData.token);
-    const checkDepositEndPoint =
-      this.configService.get<string>('PAYMENT_GATWAY') +
-      '/payment/check/' +
-      transactionData.token;
-
-    return this.httpService.get<any>(checkDepositEndPoint).pipe(
-      tap((response: any) => {
-        if (response.statusCode === 200) {
-          if (response.data.state === ReqStatus.SUCCESS)
-            this.handleTransactionStateSuccess(
-              this.dataParser(transactionData, response, userData),
-              userData,
-            );
-        }
-        return response;
-      }),
-      catchError((error) => {
-        return throwError(error);
-      }),
-    );
+  private async chechTransactionStatus(
+    transactionId: string,
+    userData: User,
+  ): Promise<any> {
+    const transaction = await this.getTransactionData(transactionId);
+    if (!transaction)
+      return {
+        statusCode: 404,
+        message: 'Transaction not found',
+      };
+    if (transaction && transaction.reqStatus === ReqStatus.PENDING) {
+      return this.handleTransactionStatePending(transaction, userData);
+    } else if (transaction && transaction.reqStatus === ReqStatus.SUCCESS) {
+      return {
+        success: true,
+        status: 'Success',
+        transactionData: transaction,
+      };
+    } else if (transaction && transaction.reqStatus === ReqStatus.ERROR) {
+      return {
+        success: true,
+        status: 'Rejected',
+        transactionData: transaction,
+      };
+    }
   }
 
-  //   chekStatus(res: any, userId: string, invoiceData) {
-  //     const updateInvoiceStatus = (status: string, errorMsg?: string) => {
-  //       invoiceData.status = status;
-  //       if (errorMsg) {
-  //         invoiceData.statusErrorMsg = errorMsg;
-  //       }
-  //     };
+  private async getTransactionData(transactionId: string): Promise<any> {
+    if (!mongoose.Types.ObjectId.isValid(transactionId)) {
+      throw new NotFoundException('Invalid transaction ID');
+    }
+    const transaction = await this.transactionModel.findById(transactionId);
+    if (!transaction) throw new NotFoundException('Transaction not found');
 
-  //     switch (res.data.state) {
-  //       case 'financial_transaction_pending':
-  //         invoiceData.status = 'Pending';
-  //         setTimeout(() => {
-  //           this.checkTransactionStatus(invoiceData.ref.token).subscribe(
-  //             (data) => {
-  //               if (data.data.state === 'financial_transaction_success') {
-  //                 updateInvoiceStatus('Completed');
-  //               }
-  //               this.chekStatus(data, userId, invoiceData);
-  //             },
-  //           );
-  //         }, 3000);
-  //         break;
-
-  //       case 'financial_transaction_success':
-  //         updateInvoiceStatus('Completed');
-  //         break;
-
-  //       case 'financial_transaction_error':
-  //         const errorMessages: { [key: number]: string } = {
-  //           '-201': 'Payer account not found',
-  //           '-202': 'Receiver account not found',
-  //           '-200': 'Unknown error',
-  //           '-204': 'The balance of the payer account is insufficient',
-  //           '-205': 'Payment method not found',
-  //           '-206': 'Invalid amount',
-  //           '-207': 'Waiting for a long time error',
-  //           '-208': 'Payment rejected by the payer',
-  //         };
-  //         const errorMsg = errorMessages[res.data.error] || 'Unknown code error';
-  //         updateInvoiceStatus('Rejected', errorMsg);
-  //         break;
-
-  //       default:
-  //         console.warn('Unexpected transaction state:', res.data.state);
-  //     }
-  //   }
-
-  //   getTransactionData(
-  //     userId: string,
-  //     eventId: string,
-  //     invoiceId: string,
-  //   ): Observable<any> {
-
-  //   }
+    return transaction;
+  }
 
   dataParser(transactionData: any, responseData: any, userData: any) {
-    if (responseData.data.statusCode === 401)
-      responseData.data.message = 'Unauthorised request';
-    else if (responseData.data.statusCode === 404)
-      responseData.data.message = 'APP id not found';
-    else if (responseData.data.statusCode > 500)
-      responseData.data.message = 'Internal server error';
+    if (responseData.statusCode === 401)
+      responseData.message = 'Unauthorised request';
+    else if (responseData.statusCode === 404)
+      responseData.message = 'APP id not found';
+    else if (responseData.statusCode > 500)
+      responseData.message = 'Internal server error';
     else
       responseData.data.message =
         responseData.data.error != 0
@@ -307,6 +364,11 @@ export class TransactionService {
           : ''; // Deduced from the response code
 
     return {
+      _id: transactionData._id ? transactionData._id : undefined,
+      reqStatusCode: responseData.statusCode, // as statusCode in payment API res
+      reqErrorCode: responseData.data.error
+        ? responseData.data.error
+        : undefined, // data.error in payment API res
       invoiceRef: this.generateRef(),
       payment: transactionData.payment,
       paymentMethod: transactionData.paymentMethod,
@@ -318,21 +380,25 @@ export class TransactionService {
       taxes: transactionData.taxes,
       taxesAmount: transactionData.taxesAmount,
       tickets: transactionData.tickets,
-      usereId: userData._id,
-      usereEmail: userData.email,
+      eventId: transactionData.eventId,
+      categoryId: transactionData.categoryId,
+      userId: userData._id,
+      usermail: userData.email,
       userName: transactionData.userName,
       userPhone: userData.phone,
-      type: transactionData.type,
-      moneyCode: transactionData.moneyCode, // as data.moneyCode in payment API req/res
+      type: transactionData.type ? transactionData.type : 'deposite',
+      moneyCode: responseData.data.moneyCode
+        ? responseData.data.moneyCode
+        : 'XAF', // as data.moneyCode in payment API req/res
       titled: responseData.data.raison
         ? responseData.data.raison
         : 'Ticket - Yabi Events', // as data.raison in payment API req/res
-      paymentMode: transactionData.paymentMethode, // In payment API req/res
+      paymentMode: transactionData.paymentMethod, // In payment API req/res
       token: responseData.data.token ? responseData.data.token : '', // In payment API res
       ref: responseData.data.ref ? responseData.data.ref : '', // In payment API res
-      message: responseData.data.message ? responseData.data.message : '',
-      reqStatusCode: responseData.statusCode, // as statusCode in payment API res
-      reqErrorCode: responseData.data.error ? responseData.data.error : '', // data.error in payment API res
+      message: responseData.data.message
+        ? responseData.data.message
+        : responseData.message,
     };
   }
 
@@ -394,14 +460,12 @@ export class TransactionService {
       throw new NotFoundException('Invalid transaction ID');
     }
 
-    const transaction = await this.transactionModel.findByIdAndUpdate(
-      transactionId,
-      transactionData,
-      {
+    const transaction = await this.transactionModel
+      .findByIdAndUpdate(transactionId, transactionData, {
         new: true,
         runValidators: true,
-      },
-    );
+      })
+      .populate('userId');
 
     if (!transaction) throw new NotFoundException('Invalid transaction ID');
 

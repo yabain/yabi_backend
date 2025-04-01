@@ -2,6 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { TicketClasses } from 'src/ticket-classes/ticket-classes.shema';
 import mongoose from 'mongoose';
 import { User } from 'src/user/user.schema';
+import { Event } from '../event/event.schema';
+import { EventCategories } from 'src/event-categories/event-categories.schema';
 
 export enum TransactionType {
   DEPOSITE = 'deposit',
@@ -68,11 +70,17 @@ export class Transaction {
   @Prop([{ type: Object }])
   tickets: TicketClassIdrate[];
 
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Event' })
+  eventId: Event;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'EventCategories' })
+  categoryId: EventCategories;
+
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  usereId: User;
+  userId: User;
 
   @Prop()
-  usereEmail: string;
+  userEmail: string;
 
   @Prop()
   userName: string;

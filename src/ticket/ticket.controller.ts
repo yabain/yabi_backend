@@ -49,7 +49,7 @@ export class TicketController {
     @Body() ticket: CreateTicketDto,
     @Req() req,
   ): Promise<any> {
-    return this.ticketService.createFreeTicket(ticket, req.user);
+    return this.ticketService.createFreeTicket(ticket, req.user, true);
   }
 
   @Get('participantStatus/:id')

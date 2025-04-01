@@ -14,6 +14,8 @@ import {
   TicketClassIdrate,
   TransactionType,
 } from './transaction.schema';
+import { Event } from '../event/event.schema';
+import { EventCategories } from 'src/event-categories/event-categories.schema';
 
 export class UpdateTransactionDto {
   @IsString()
@@ -53,12 +55,18 @@ export class UpdateTransactionDto {
   @IsOptional()
   readonly tickets: TicketClassIdrate[];
 
+  @IsOptional()
+  readonly eventId: Event;
+
+  @IsOptional()
+  readonly categoryId: EventCategories;
+
   @IsEmpty({ message: 'You cannot pass user id' })
-  readonly usereId: User;
+  readonly userId: User;
 
   @IsEmail()
   @IsOptional()
-  readonly usereEmail: string;
+  readonly userEmail: string;
 
   @IsString()
   @IsOptional()
