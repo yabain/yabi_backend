@@ -163,15 +163,15 @@ export class UserService {
       return `${this.configService.get<string>('BACK_URL')}/assets/images/${file.filename}`;
     });
 
-    // Prepare the update data with the new profile picture URL
-    const userPictureUpdate = { pictureUrl: fileUrls[0] };
-
     // Update the user's profile picture in the database
     const updatedUser = await this.userModel.findByIdAndUpdate(
       req.user._id,
-      userPictureUpdate,
+      { pictureUrl: fileUrls[0] },
       { new: true, runValidators: true },
-    );
+    )
+    .populate('cityId')
+    .populate('countryId');
+
     if (!updatedUser) {
       throw new NotFoundException('User not found');
     } else {

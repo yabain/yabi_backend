@@ -218,6 +218,7 @@ export class TicketService {
       .findById(ticketId)
       .populate('eventId')
       .populate('userId')
+      .populate('ticketClassId')
       .exec();
     if (!ticketData) {
       throw new NotFoundException('ticket not found');
