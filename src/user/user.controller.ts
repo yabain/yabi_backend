@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
@@ -7,6 +6,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -41,7 +41,10 @@ export class UserController {
   @Get()
   @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data using the UpdateUserDto
-  async getAllUser(@Query() query: ExpressQuery): Promise<User[]> {
+  async getAllUser(@Query() query: ExpressQuery, @Req() req): Promise<User[]> {
+    if (!req.user.isAdmin) {
+      throw new NotFoundException('Unautorised');
+    }
     return this.userService.searchByEmail(query);
   }
 
@@ -107,7 +110,10 @@ export class UserController {
    */
   @Delete(':id')
   @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
-  async delete(@Param('id') userId: string): Promise<any> {
+  async delete(@Param('id') userId: string, @Req() req): Promise<any> {
+    if (!req.user.isAdmin) {
+      throw new NotFoundException('Unautorised');
+    }
     return this.userService.deleteUser(userId);
   }
 

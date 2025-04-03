@@ -165,7 +165,7 @@ export class EmailService {
       cover_img: event.eventData.cover,
       event_title: event.eventData.title,
       event_category: event.categoryData.name,
-      event_price: event.eventData.paid ? '******* FCFA' : 'Free',
+      event_price: event.eventData.paid === true ? event.price : 'FREE',
       event_description: event.eventData.description,
       event_country: event.countryData.name,
       event_city: event.cityData.name,

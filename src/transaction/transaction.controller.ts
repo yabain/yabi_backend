@@ -7,6 +7,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -28,17 +29,18 @@ export class TransactionController {
   constructor(private transactionService: TransactionService) {}
 
   @Get()
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
   async getAllTransactoins(
     @Query() query: ExpressQuery,
+    @Req() req,
   ): Promise<Transaction[]> {
+    if (!req.user.isAdmin) {
+      throw new NotFoundException('Unautorised');
+    }
     return this.transactionService.findAll(query);
   }
 
-  /**
-   * Get a specific transaction by ID.
-   * @param transactionId - The ID of the transaction to retrieve.
-   * @returns The transaction details.
-   */
   @Get(':id')
   @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
@@ -46,49 +48,21 @@ export class TransactionController {
     @Param('id') transactionId: string,
     @Req() req,
   ): Promise<any> {
-    console.log('found transaction: ', transactionId);
     return this.transactionService.findById(transactionId, req.user);
   }
 
-  /**
-   * Create a new transaction.
-   * @param transaction - The transaction data to create.
-   * @param req - The request object containing the authenticated user.
-   * @param files - The uploaded files (e.g., transaction cover image).
-   * @returns The created transaction.
-   */
   @Post('new')
   @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe) // Validate the incoming data
   async processPayment(@Body() transactionData: any, @Req() req): Promise<any> {
-    console.log('Data from frontend: ', transactionData);
     return this.transactionService.processPayment(transactionData, req.user);
   }
 
-  /**
-   * Delete an transaction by ID.
-   * @param transactionId - The ID of the transaction to delete.
-   * @returns The result of the deletion operation.
-   */
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   async delete(@Param('id') transactionId: string, @Req() req): Promise<any> {
     if (!req.user.isAdmin) throw new BadRequestException('Unauthorised !');
     return this.transactionService.deleteTransaction(transactionId);
-  }
-
-  /**
-   * Get the list of transactions for a specific user.
-   * @param transactionId - The ID of the transaction.
-   * @returns A list of participants.
-   */
-  @Get('user/:id')
-  @UseGuards(AuthGuard('jwt'))
-  async getParticipantsList(
-    @Param('id') userId: string,
-    @Query() query: ExpressQuery,
-  ): Promise<any> {
-    return this.transactionService.getTransactionsListOfUser(userId, query);
   }
 
   //////////////////////////////////////////

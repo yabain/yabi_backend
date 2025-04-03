@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -71,19 +72,22 @@ export class TicketService {
     user: User,
     sendMail?: boolean,
   ): Promise<any> {
-    const ticketClassData = await this.ticketClassesModel.findById(
-      ticket.ticketClassId,
-    );
+    const ticketClassData: any = await this.ticketClassesModel
+      .findById(ticket.ticketClassId)
+      .populate('eventId');
     if (!ticketClassData) {
       throw new NotFoundException('Ticket class not found');
     }
 
-    if (
-      ticketClassData.quantity > 0 &&
-      ticketClassData.quantity <= ticketClassData.taken
-    ) {
-      throw new BadRequestException('No available tickets');
+    if (!this.isPastDateTime(ticketClassData.eventId.dateEnd)) {
+      throw new NotFoundException('Event ended');
     }
+    // if (
+    //   ticketClassData.quantity > 0 &&
+    //   ticketClassData.quantity <= ticketClassData.taken
+    // ) {
+    //   throw new BadRequestException('No available tickets');
+    // }
 
     if (typeof ticket.ticketClassId !== 'string') {
       throw new BadRequestException('Invalid ticketClass ID');
@@ -110,44 +114,49 @@ export class TicketService {
         .exec();
 
       if (eventData && user.email && sendMail) {
-        await this.emailService.sendEventParticipationEmail(
-          user.email,
-          user.language || 'en', // Valeur par défaut si language non défini
-          user.name || `${user.firstName} ${user.lastName}`,
-          {
-            eventData: {
-              _id: eventData._id,
-              title: eventData.title,
-              description: eventData.description,
-              cover: eventData.cover,
-              dateStart: eventData.dateStart,
-              dateEnd: eventData.dateEnd,
-              location: eventData.location,
-              paid: eventData.paid,
-            },
-            categoryData: eventData.categoryId
-              ? {
-                  name: eventData.categoryId.name,
-                }
-              : null,
-            countryData: eventData.countryId
-              ? {
-                  name: eventData.countryId.name,
-                }
-              : null,
-            cityData: eventData.cityId
-              ? {
-                  name: eventData.cityId.name,
-                }
-              : null,
-          },
-        );
+        await this.senMail(eventData, user);
       }
     } catch (error) {
       console.error('Failed to send participation email:', error);
     }
 
     return createdTicket;
+  }
+
+  async senMail(eventData: any, user: any, price?: number): Promise<any> {
+    return await this.emailService.sendEventParticipationEmail(
+      user.email,
+      user.language || 'en', // Default value if language not defined
+      user.name || `${user.firstName} ${user.lastName}`,
+      {
+        price: price ? `${price} FCFA` : 0,
+        eventData: {
+          _id: eventData._id,
+          title: eventData.title,
+          description: eventData.description,
+          cover: eventData.cover,
+          dateStart: eventData.dateStart,
+          dateEnd: eventData.dateEnd,
+          location: eventData.location,
+          paid: eventData.paid,
+        },
+        categoryData: eventData.categoryId
+          ? {
+              name: eventData.categoryId.name,
+            }
+          : null,
+        countryData: eventData.countryId
+          ? {
+              name: eventData.countryId.name,
+            }
+          : null,
+        cityData: eventData.cityId
+          ? {
+              name: eventData.cityId.name,
+            }
+          : null,
+      },
+    );
   }
 
   async createMultipleTicket(transactionData: any, userData): Promise<boolean> {
@@ -164,7 +173,15 @@ export class TicketService {
         await this.createFreeTicket(ticketData, userData, false);
       }
     }
+    const event = await this.eventModel.findById(transactionData.eventId);
+    this.senMail(event, userData, transactionData.paymentWithTaxes);
     return true;
+  }
+
+  isPastDateTime(dateStr: string): boolean {
+    const targetDateTime = new Date(`${dateStr}`);
+    const currentDateTime = new Date();
+    return targetDateTime > currentDateTime;
   }
 
   async incrementTaken(ticketClassId: string): Promise<any> {

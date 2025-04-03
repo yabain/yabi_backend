@@ -52,7 +52,7 @@ export class TransactionService {
     return transactions;
   }
 
-  async findById(transactionId: string, userData: User): Promise<Transaction> {
+  async findById(transactionId: string, userData: User): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(transactionId)) {
       throw new NotFoundException('Invalid event ID');
     }
@@ -62,20 +62,25 @@ export class TransactionService {
       .findById(transactionId)
       .populate('userId')
       .populate('eventId');
-    console.log('transac: ', transaction);
     if (!transaction) {
       throw new NotFoundException('transaction not found');
     }
     transaction.userId.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
     transaction.userId.password = ''; // Remove the password from the response for security
     const user = transaction.userId;
-    console.log('user 111: ', user);
     if (user._id != userData._id && !userData.isAdmin) {
       throw new NotFoundException('Event not found');
     }
 
-    console.log('transac 111: ', transaction);
-    return transaction;
+    if (transaction.reqStatus === ReqStatus.PENDING) {
+      this.handleTransactionStatePending(transaction, userData);
+    }
+
+    return {
+      success: true,
+      status: transaction.reqStatus,
+      transactionData: transaction,
+    };
   }
 
   async getTransactionsListOfUser(
@@ -102,7 +107,6 @@ export class TransactionService {
   }
 
   async processPayment(paymentData: any, userData: User): Promise<any> {
-    console.log('paymentData.paymentWithTaxes: ', paymentData.paymentWithTaxes);
     try {
       const depositEndPoint = `${this.configService.get<string>('PAYMENT_GATWAY')}/payment/pay`;
       const depositData = {
@@ -118,7 +122,6 @@ export class TransactionService {
         appID: this.configService.get<string>('PAYMENT_GATWAY_KEY'),
       };
 
-      console.log('depositData: ', depositData);
       const response = await firstValueFrom(
         this.httpService.post(depositEndPoint, depositData, {
           headers: {
@@ -126,7 +129,6 @@ export class TransactionService {
           },
         }),
       );
-      console.log('la rest du payment: ', response);
 
       const transaction = this.dataParser(paymentData, response.data, userData);
 
@@ -142,8 +144,8 @@ export class TransactionService {
 
       return {
         success: false,
-        statusCode: error.statusCode || 500,
-        message: error.message || 'Payment processing failed',
+        status: transaction.reqStatus,
+        transactionData: transaction,
       };
     }
   }
@@ -153,7 +155,7 @@ export class TransactionService {
     userData: User,
   ): Promise<void> {
     let attempts = 0;
-    const maxAttempts = 24; //After 2 minutes (24 x 5s)
+    const maxAttempts = 24; // After 2 minutes (24 x 5s)
 
     const checkStatus = async () => {
       try {
@@ -162,13 +164,12 @@ export class TransactionService {
           this.httpService.get<any>(checkDepositEndPoint),
         );
 
-        if (response.statusCode === 201) {
-          const newTransactionData = this.dataParser(
-            transactionData,
-            response,
-            userData,
-          );
-
+        const newTransactionData = this.dataParser(
+          transactionData,
+          response.data,
+          userData,
+        );
+        if (response.data.statusCode === 200) {
           if (newTransactionData.reqStatus === ReqStatus.SUCCESS) {
             return await this.handleTransactionStateSuccess(
               newTransactionData,
@@ -181,7 +182,6 @@ export class TransactionService {
       } catch (error) {
         console.error('Error checking transaction: ', error.message);
       }
-
       attempts++;
       if (attempts < maxAttempts) {
         setTimeout(checkStatus, 5000); // Vérifie à nouveau dans 5 secondes
@@ -194,21 +194,21 @@ export class TransactionService {
   }
 
   private async handleRequest(transactionData, userData): Promise<any> {
-    console.log('handleRequest: ', transactionData);
     if (transactionData.reqStatus === ReqStatus.SUCCESS) {
-      console.log('SUCCESS: ', ReqStatus.SUCCESS);
-      return this.handleTransactionStateSuccess(transactionData, userData);
+      return {
+        success: true,
+        status: transactionData.reqStatus,
+        transactionData: transactionData,
+      };
     } else if (transactionData.reqStatus === ReqStatus.PENDING) {
-      console.log('PENDING: ', ReqStatus.PENDING);
       return this.handleTransactionStatePending(transactionData, userData);
     } else if (transactionData.reqStatus === ReqStatus.ERROR) {
-      console.log('ERROR: ', ReqStatus.ERROR);
       return this.handleTransactionStateError(transactionData);
     } else
       return {
         success: false,
         status: 'Error',
-        message: 'Unknow error',
+        transactionData: transactionData,
       };
   }
 
@@ -216,20 +216,35 @@ export class TransactionService {
     transactionData,
     userData,
   ): Promise<any> {
-    if (transactionData && transactionData.reqStatus === ReqStatus.PENDING) {
+    const transaction: any = await this.transactionModel.findById(
+      transactionData._id,
+    );
+    if (transaction && transaction.reqStatus === ReqStatus.PENDING) {
       transactionData = await this.updateTransaction(transactionData._id, {
         reqStatus: ReqStatus.SUCCESS,
         message: transactionData.message ? transactionData.message : '',
         reqErrorCode: '',
       });
+      this.ticketService.createMultipleTicket(transactionData, userData);
+      return {
+        success: true,
+        status: transactionData.reqStatus,
+        transactionData: transactionData,
+      };
+    } else if (transaction && transaction.reqStatus === ReqStatus.SUCCESS) {
+      return {
+        success: true,
+        status: transactionData.reqStatus,
+        transactionData: transactionData,
+      };
+    } else {
+      return {
+        success: false,
+        status: transaction.reqStatus,
+        transactionData: transaction,
+        message: `Transaction status is not on Pending, Couldn't update on Success`,
+      };
     }
-    // this.ticketService.createMultipleTicket(transactionData, userData);
-
-    return {
-      success: true,
-      status: 'Success',
-      transactionData: transactionData,
-    };
   }
 
   private async handleTransactionStatePending(
@@ -251,7 +266,7 @@ export class TransactionService {
           this.checkTransactionLoop(transactionData, userData);
         return {
           success: true,
-          status: 'Pending',
+          status: transaction.reqStatus,
           transactionData: transaction,
         };
       } else throw new NotFoundException('Transaction not found');
@@ -263,7 +278,7 @@ export class TransactionService {
       this.checkTransactionLoop(newTransaction, userData);
       return {
         success: true,
-        status: 'Pending',
+        status: newTransaction.reqStatus,
         transactionData: newTransaction,
       };
     }
@@ -287,22 +302,24 @@ export class TransactionService {
         );
         return {
           success: true,
-          status: 'Rejected',
+          status: transactionUpdate.reqStatus,
           transactionData: transactionUpdate,
         };
       } else if (transaction && transaction.reqStatus === ReqStatus.ERROR) {
         return {
           success: true,
-          status: 'Rejected',
+          status: transaction.reqStatus,
           transactionData: transaction,
         };
       } else throw new NotFoundException('Transaction not found');
     }
     transactionData.reqStatus === ReqStatus.ERROR;
     const transaction: any = await this.createTransaction(transactionData);
+    if (!transaction)
+      throw new NotFoundException('Can not save transaction Error data');
     return {
       success: true,
-      status: 'Rejected',
+      status: transaction.reqStatus,
       transactionData: transaction,
     };
   }
@@ -318,11 +335,7 @@ export class TransactionService {
     userData: User,
   ): Promise<any> {
     const transaction = await this.getTransactionData(transactionId);
-    if (!transaction)
-      return {
-        statusCode: 404,
-        message: 'Transaction not found',
-      };
+    if (!transaction) throw new NotFoundException('Transaction not found.');
     if (transaction && transaction.reqStatus === ReqStatus.PENDING) {
       return this.handleTransactionStatePending(transaction, userData);
     } else if (transaction && transaction.reqStatus === ReqStatus.SUCCESS) {
@@ -470,5 +483,11 @@ export class TransactionService {
     if (!transaction) throw new NotFoundException('Invalid transaction ID');
 
     return transaction;
+  }
+
+  isPastDateTime(dateStr: string): boolean {
+    const targetDateTime = new Date(`${dateStr}`);
+    const currentDateTime = new Date();
+    return targetDateTime > currentDateTime;
   }
 }
