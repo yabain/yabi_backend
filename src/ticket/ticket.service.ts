@@ -64,6 +64,7 @@ export class TicketService {
     if (!tickets) {
       throw new NotFoundException('tickets not found');
     }
+    console.log("ticket data: ", tickets);
     return tickets;
   }
 
