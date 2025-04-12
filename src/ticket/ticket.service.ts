@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
@@ -64,7 +66,6 @@ export class TicketService {
     if (!tickets) {
       throw new NotFoundException('tickets not found');
     }
-    console.log("ticket data: ", tickets);
     return tickets;
   }
 
@@ -247,5 +248,69 @@ export class TicketService {
       cityData: cityData,
     };
     return ticket;
+  }
+
+  async ticketValidation(
+    ticketId: string,
+    userId: string,
+  ): Promise<Ticket | null> {
+    let ticketIdObj: any = ticketId;
+    if (!mongoose.Types.ObjectId.isValid(ticketId)) {
+      ticketIdObj = new mongoose.Types.ObjectId(ticketId);
+    }
+    const ticketData = await this.getTicketData(ticketIdObj);
+    if (!ticketData) {
+      throw new NotFoundException('Ticket not found');
+    }
+    if (ticketData.used) {
+      throw new BadRequestException('Ticket already used');
+    }
+    if (ticketData.eventId.autor.toString() !== userId) {
+      throw new BadRequestException('You cannot validate this ticket');
+    }
+
+    return this.ticketModel
+      .findByIdAndUpdate(ticketIdObj, { $set: { used: true } }, { new: true })
+      .exec();
+
+    // return this.ticketModel
+    // .findOneAndUpdate(
+    //   { ticket: ticketIdObj, used: true },
+    //   { $set: { used: true } },
+    //   { new: true },
+    // )
+    // .exec();
+  }
+
+  async ticketTransfert(
+    ticketId: string,
+    userId: string,
+  ): Promise<Ticket | null> {
+    let ticketIdObj: any = ticketId;
+    if (!mongoose.Types.ObjectId.isValid(ticketId)) {
+      ticketIdObj = new mongoose.Types.ObjectId(ticketId);
+    }
+    const ticketData = await this.getTicketData(ticketIdObj);
+    if (!ticketData) {
+      throw new NotFoundException('Ticket not found');
+    }
+    if (ticketData.used) {
+      throw new BadRequestException('Ticket already used');
+    }
+    if (ticketData.userId._id.toString() === userId) {
+      throw new BadRequestException('Cannot Transfet to yourself');
+    }
+
+    let userIdObj: any = ticketId;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      userIdObj = new mongoose.Types.ObjectId(userId);
+    }
+    return this.ticketModel
+      .findByIdAndUpdate(
+        ticketIdObj,
+        { $set: { userId: userIdObj } },
+        { new: true },
+      )
+      .exec();
   }
 }

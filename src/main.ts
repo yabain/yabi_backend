@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -6,6 +7,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -23,6 +26,7 @@ async function bootstrap() {
       'https://yabi.cm', // Production
       'https://app.yabi.cm', // Production
       'capacitor://localhost', // Pour les apps mobiles
+      'ionic://localhost', // Pour les apps mobiles
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: [
@@ -64,6 +68,18 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, '..', '..', 'assets'), {
     prefix: '/assets',
   });
+
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Configuration Swagger
+  const config = new DocumentBuilder()
+    .setTitle('Yabi API')
+    .setDescription("Documentation de l'API Yabi")
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Application is running on: ${await app.getUrl()}`);
