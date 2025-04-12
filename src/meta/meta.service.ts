@@ -94,7 +94,7 @@ export class MetaService {
             <meta property="og:description" content="${ticket.eventId.description}" />
             <meta property="og:type" content="website" />
             <meta property="og:url" content="${this.configService.get<string>('FRONT_URL')}/scanner/transfert-ticket/${encrypted}" />
-            <meta property="og:image" content="${this.configService.get<string>('BACK_URL')}/assets/images/statics/ticket.png" />
+            <meta property="og:image" content="${this.configService.get<string>('BACK_URL')}/uploads/ticket.png" />
             <meta property="og:site_name" content="Yabi Events" />
             <meta name="twitter:card" content="summary_large_image">
           </head>

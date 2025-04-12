@@ -20,6 +20,7 @@ import { TicketService } from '../ticket/ticket.service';
 import { UserService } from '../user/user.service';
 import { NotificationService } from 'src/notification/notification.service';
 import { ConfigService } from '@nestjs/config';
+import { generateFileUrl } from '../multer.config';
 
 @Injectable()
 export class EventService {
@@ -79,9 +80,7 @@ export class EventService {
     const userId = req.user._id;
 
     // Generate URLs for the uploaded files
-    const fileUrls = files.map((file) => {
-      return `${this.configService.get<string>('BACK_URL')}/assets/images/${file.filename}`;
-    });
+    const fileUrls = files.map((file) => generateFileUrl(file.filename));
 
     // Prepare event data with the user ID and cover image URL
     const eventData = {
@@ -341,9 +340,7 @@ export class EventService {
     }
 
     // Generate URLs for the uploaded files
-    const fileUrls = files.map((file) => {
-      return `${this.configService.get<string>('BACK_URL')}/assets/images/${file.filename}`;
-    });
+    const fileUrls = files.map((file) => generateFileUrl(file.filename));
 
     // Prepare the update data with the new profile cover URL
     const eventPictureUpdate = { cover: fileUrls[0] };

@@ -20,6 +20,11 @@ export const multerConfig = {
   },
 };
 
+export const generateFileUrl = (filename: string): string => {
+  const baseUrl = process.env.BACK_URL || 'https://app.yabi.cm'; // Utilisez l'URL de votre backend
+  return `${baseUrl}/uploads/${filename}`;
+};
+
 // Configuration for Multer to handle file uploads
 export const multerConfigForUser = {
   storage: diskStorage({
