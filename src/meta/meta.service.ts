@@ -84,7 +84,7 @@ export class MetaService {
         userAgent,
       );
 
-    // if (isSocialMediaBot) {
+    if (isSocialMediaBot) {
       const html = `
           <!DOCTYPE html>
           <html prefix="og: https://ogp.me/ns#">
@@ -107,11 +107,11 @@ export class MetaService {
           `;
 
       return res.send(html);
-    // }
+    }
 
-    // // Redirection normale pour les navigateurs
-    // return res.redirect(
-    //   `${this.configService.get<string>('FRONT_URL')}/scanner/transfert-ticket/${encrypted}`,
-    // );
+    // Redirection normale pour les navigateurs
+    return res.redirect(
+      `${this.configService.get<string>('FRONT_URL')}/scanner/transfert-ticket/${encrypted}`,
+    );
   }
 }
