@@ -22,11 +22,13 @@ async function bootstrap() {
   // Configuration CORS renforcée
   app.enableCors({
     origin: [
-      'http://localhost:8100', // Ionic en dev
-      'https://yabi.cm', // Production
-      'https://app.yabi.cm', // Production
-      'capacitor://localhost', // Pour les apps mobiles
-      'ionic://localhost', // Pour les apps mobiles
+      '*',
+      // 'http://localhost', // Ionic en dev
+      // 'http://localhost:8100', // Ionic en dev
+      // 'https://yabi.cm', // Production
+      // 'https://app.yabi.cm', // Production
+      // 'capacitor://localhost', // Pour les apps mobiles
+      // 'ionic://localhost', // Pour les apps mobiles
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: [
@@ -37,7 +39,7 @@ async function bootstrap() {
       'Origin',
     ],
     exposedHeaders: ['Authorization', 'Content-Length'],
-    credentials: true,
+    // credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
