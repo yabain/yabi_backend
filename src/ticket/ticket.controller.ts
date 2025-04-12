@@ -23,7 +23,7 @@ import { Response } from 'express';
 
 @Controller('ticket')
 export class TicketController {
-  constructor(private ticketService: TicketService) { }
+  constructor(private ticketService: TicketService) {}
 
   @Get('all/:id')
   async getAllTicketsOfEvent(@Param('id') eventId: string): Promise<any> {
@@ -70,6 +70,21 @@ export class TicketController {
     @Req() req,
   ): Promise<any> {
     return this.ticketService.ticketValidation(ticketId, req.user._id);
+  }
+
+  @Put('transfert/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @UsePipes(ValidationPipe)
+  async ticketTransfert(
+    @Param('id') ticketId: string,
+    @Body() data: any,
+    @Req() req,
+  ): Promise<any> {
+    return this.ticketService.ticketTransfert(
+      ticketId,
+      req.user._id,
+      data.senderId,
+    );
   }
 
   //////////////////////////////////////////////

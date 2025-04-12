@@ -265,7 +265,7 @@ export class TicketService {
     if (ticketData.used) {
       throw new BadRequestException('Ticket already used');
     }
-    if (ticketData.eventId.autor.toString() !== userId) {
+    if (ticketData.eventId.autor.toString() !== userId.toString()) {
       throw new BadRequestException('You cannot validate this ticket');
     }
 
@@ -285,6 +285,7 @@ export class TicketService {
   async ticketTransfert(
     ticketId: string,
     userId: string,
+    senderId: any,
   ): Promise<Ticket | null> {
     let ticketIdObj: any = ticketId;
     if (!mongoose.Types.ObjectId.isValid(ticketId)) {
@@ -297,18 +298,17 @@ export class TicketService {
     if (ticketData.used) {
       throw new BadRequestException('Ticket already used');
     }
-    if (ticketData.userId._id.toString() === userId) {
+    if (ticketData.userId._id.toString() === userId.toString()) {
       throw new BadRequestException('Cannot Transfet to yourself');
     }
-
-    let userIdObj: any = ticketId;
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      userIdObj = new mongoose.Types.ObjectId(userId);
+    if (ticketData.userId._id.toString() !== senderId.toString()) {
+      throw new BadRequestException('This ticket is not yours');
     }
+
     return this.ticketModel
       .findByIdAndUpdate(
         ticketIdObj,
-        { $set: { userId: userIdObj } },
+        { $set: { userId: userId } },
         { new: true },
       )
       .exec();

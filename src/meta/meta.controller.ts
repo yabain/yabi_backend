@@ -16,4 +16,14 @@ export class MetaController {
   ) {
     return this.metaService.getEventMeta(eventId, res, req);
   }
+
+  @Get('ticket/:id')
+  async getTicketMeta(
+    @Param('id') ticketId: string,
+    @Res() res: Response,
+    @Req() req,
+  ) {
+    console.log('ticketId', ticketId);
+    return this.metaService.getTicketMeta(ticketId, res, req);
+  }
 }
