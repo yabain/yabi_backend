@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
@@ -85,5 +86,15 @@ export class CountryService {
       },
     );
     return user;
+  }
+
+  async import(countries: any): Promise<any> {
+    for (const country of countries) {
+      const existingCountry = await this.creatCountry(country);
+      if (!existingCountry) {
+        await this.countryModel.create(country);
+      }
+    }
+    return 'Countries imported successfully';
   }
 }

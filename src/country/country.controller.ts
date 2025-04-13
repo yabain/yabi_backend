@@ -59,4 +59,26 @@ export class CountryController {
     // console.log('Getting one country');
     return this.countryService.findById(countryId);
   }
+
+  @Post('import')
+  async import(@Body() body: any): Promise<any> {
+    const countries = [
+      {
+        name: 'Cameroon',
+      },
+      {
+        name: 'Gabon',
+      },
+      {
+        name: 'Congo',
+      },
+      {
+        name: 'Guinee_equatoriale',
+      },
+      {
+        name: 'Online',
+      },
+    ];
+    return this.countryService.import(countries);
+  }
 }

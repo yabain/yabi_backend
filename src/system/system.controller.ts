@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { System } from './system.schema';
 import { SystemService } from './system.service';
 
@@ -10,5 +10,10 @@ export class SystemController {
   @Get()
   async getData(): Promise<System[]> {
     return this.systemService.getData();
+  }
+
+  @Post('import')
+  async import(): Promise<any> {
+    return this.systemService.import();
   }
 }

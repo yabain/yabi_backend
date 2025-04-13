@@ -10,6 +10,7 @@ import { City } from './city.schema';
 import * as mongoose from 'mongoose';
 import { Query } from 'express-serve-static-core';
 import { CreateCityDto } from './create-city.dto';
+import { Cities } from './city'; // Vérifiez que ce fichier exporte bien un tableau ou objet valide
 
 @Injectable()
 export class CityService {
@@ -117,13 +118,19 @@ export class CityService {
    * Import cities into the database.
    * This method is used to seed the database with initial city data.
    */
-  async importCities() {
-    const cities: any = [];
+  async importCities(): Promise<any> {
+    const citiesInstance = new Cities(); // Instanciez la classe Cities
+    const cities = citiesInstance.cities; // Accédez à la propriété cities
+    console.log(cities);
+
+    if (!Array.isArray(cities)) {
+      throw new Error('Cities must be an array of city data');
+    }
+
     for (const city of cities) {
       try {
         await this.creatCity(city);
       } catch (error) {
-        // Log if the city already exists
         console.log('Existing city: ', city.name);
       }
     }
