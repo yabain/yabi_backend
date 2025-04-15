@@ -24,12 +24,11 @@ export class NotificationController {
    * @param query - Query parameters for filtering and pagination.
    * @returns A list of users.
    */
-  @Get('my-notifications/:id')
+  @Get('my-notifications')
   @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
   @UsePipes(ValidationPipe)
   async getNotificationsListOfUser(
     @Query() query: ExpressQuery,
-    @Param('id') userId: string,
     @Req() req,
   ): Promise<Notification[]> {
     return this.notificationService.getNotificationsListOfUser(
@@ -51,5 +50,12 @@ export class NotificationController {
     @Req() req,
   ): Promise<boolean> {
     return this.notificationService.makeAsReaded(req.user._id, notifId);
+  }
+
+  @Get('unreaded-notifications')
+  @UseGuards(AuthGuard('jwt'))
+  @UsePipes(ValidationPipe)
+  async getUnreadNotifications(@Req() req): Promise<Notification[]> {
+    return this.notificationService.getUnreadNotifications(req.user._id);
   }
 }

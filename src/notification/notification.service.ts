@@ -113,4 +113,11 @@ export class NotificationService {
       else return false;
     } else return false;
   }
+
+  async getUnreadNotifications(userId: any): Promise<any> {
+    return this.notificationModel.find({
+      userToId: userId,
+      isRead: false,
+    });
+  }
 }
