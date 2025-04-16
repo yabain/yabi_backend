@@ -14,7 +14,7 @@ const getUploadPath = () => {
 
 export const multerConfig = {
   storage: diskStorage({
-    destination: getUploadPath(), // Dossier où les fichiers seront stockés
+    destination: getUploadPath(),
     filename: (req, file, callback) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const ext = extname(file.originalname);

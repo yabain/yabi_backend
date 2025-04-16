@@ -42,8 +42,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 env.ts
-/assets/images/*
 /assets/*
+!/assets/images/
+/assets/images/*
 
 # temp directory
 .temp
