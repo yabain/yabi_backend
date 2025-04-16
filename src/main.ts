@@ -83,6 +83,17 @@ async function bootstrap() {
     prefix: '/uploads',
   });
 
+  // Par ceci :
+  app.useStaticAssets(join(assetsPath, 'images'), {
+    prefix: '/uploads',
+    index: false,
+  });
+
+  app.useStaticAssets(assetsPath, {
+    prefix: '/assets',
+    index: false,
+  });
+
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Configuration Swagger

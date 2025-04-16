@@ -9,7 +9,7 @@ const getUploadPath = () => {
   if (process.env.NODE_ENV === 'production') {
     return '/app/assets/images'; // Docker contener path
   }
-  return './assets/images'; // local relatif path
+  return path.join(__dirname, '..', '..', 'assets', 'images'); // local relatif path
 };
 
 export const multerConfig = {
@@ -28,7 +28,7 @@ export const multerConfig = {
 };
 
 export const generateFileUrl = (filename: string): string => {
-  const baseUrl = process.env.BACK_URL || 'https://app.yabi.cm'; // Utilisez l'URL de votre backend
+  const baseUrl = process.env.BACK_URL || 'https://app.yabi.cm';
   return `${baseUrl}/uploads/${filename}`;
 };
 
