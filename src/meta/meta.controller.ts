@@ -14,6 +14,7 @@ export class MetaController {
     @Res() res: Response,
     @Req() req,
   ) {
+    console.log('eventId', eventId);
     return this.metaService.getEventMeta(eventId, res, req);
   }
 
