@@ -5,18 +5,49 @@ pipeline {
   }
   environment {
     DOCKERHUB_CREDENTIALS = credentials('docker-hub-cred')
+    ASSETS_VOLUME = '/var/yabi-assets' // Chemin absolu sur l'hôte
   }
   stages {
+    stage('Préparation Volume') {
+      steps {
+        sh '''
+        mkdir -p ${ASSETS_VOLUME}
+        chmod -R 775 ${ASSETS_VOLUME}
+        '''
+      }
+    }
+    
     stage('Build') {
       steps {
         sh 'docker build -t yabain/yabi-backend .'
       }
     }
+    
     stage('Login') {
       steps {
         sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
       }
     }
+    
+    stage('Déploiement') {
+      steps {
+        sh '''
+        # Arrêt du container existant
+        docker stop yabi-backend || true
+        docker rm yabi-backend || true
+        
+        # Lancement avec volume persistant
+        docker run -d \
+          --name yabi-backend \
+          -p 3000:3000 \
+          -v ${ASSETS_VOLUME}:/app/assets \
+          -e BACK_URL=https://app.yabi.cm \
+          --restart unless-stopped \
+          yabain/yabi-backend
+        '''
+      }
+    }
+    
     stage('Push') {
       steps {
         sh 'docker push yabain/yabi-backend'

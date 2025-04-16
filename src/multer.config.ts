@@ -5,9 +5,16 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import * as path from 'path';
 
+const getUploadPath = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return '/app/assets/images'; // Chemin dans le conteneur Docker
+  }
+  return './assets/images'; // Chemin local relatif
+};
+
 export const multerConfig = {
   storage: diskStorage({
-    destination: './assets/images', // Dossier où les fichiers seront stockés
+    destination: getUploadPath(), // Dossier où les fichiers seront stockés
     filename: (req, file, callback) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const ext = extname(file.originalname);
@@ -28,7 +35,7 @@ export const generateFileUrl = (filename: string): string => {
 // Configuration for Multer to handle file uploads
 export const multerConfigForUser = {
   storage: diskStorage({
-    destination: './assets/images',
+    destination: getUploadPath(),
     filename: (req: any, file, callback) => {
       const userId = req.user._id;
       const fileExt = path.extname(file.originalname);
@@ -44,7 +51,7 @@ export const multerConfigForUser = {
 // Configuration for Multer to handle file uploads
 export const multerConfigForEvent = {
   storage: diskStorage({
-    destination: './assets/images',
+    destination: getUploadPath(),
     filename: (req, file, callback) => {
       const fileExt = path.extname(file.originalname);
       const fileName = `eventCoverFile_${req.params.id}${fileExt}`;

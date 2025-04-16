@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -11,6 +10,11 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
+  const assetsPath =
+    process.env.NODE_ENV === 'production'
+      ? '/app/assets'
+      : join(__dirname, '..', '..', 'assets');
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Middleware de logging (optionnel)
@@ -71,20 +75,13 @@ async function bootstrap() {
   );
 
   // Fichiers statiques
-  app.useStaticAssets(join(__dirname, '..', '..', 'assets'), {
+  app.useStaticAssets(assetsPath, {
     prefix: '/assets',
   });
 
-  app.useStaticAssets(join(__dirname, '..', '..', 'assets', 'images'), {
+  app.useStaticAssets(assetsPath, {
     prefix: '/uploads',
   });
-
-  app.useStaticAssets(
-    join(__dirname, '..', '..', 'assets', 'images', 'statics'),
-    {
-      prefix: '/uploads',
-    },
-  );
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
