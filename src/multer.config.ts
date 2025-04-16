@@ -7,9 +7,9 @@ import * as path from 'path';
 
 const getUploadPath = () => {
   if (process.env.NODE_ENV === 'production') {
-    return '/app/assets/images'; // Chemin dans le conteneur Docker
+    return '/app/assets/images'; // Docker contener path
   }
-  return './assets/images'; // Chemin local relatif
+  return './assets/images'; // local relatif path
 };
 
 export const multerConfig = {
