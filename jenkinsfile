@@ -2,113 +2,30 @@ pipeline {
   agent any
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
-    timeout(time: 30, unit: 'MINUTES')
   }
-  
   environment {
     DOCKERHUB_CREDENTIALS = credentials('docker-hub-cred')
-    ASSETS_VOLUME = '/var/yabi-assets'
-    CONTAINER_NAME = 'yabi-backend'
   }
-  
   stages {
-    stage('Vérification Container Existant') {
+    stage('Build') {
       steps {
-        sh '''
-        # Stop et suppression propre de l'ancien container
-        if docker inspect ${CONTAINER_NAME} &>/dev/null; then
-          echo "Sauvegarde des assets depuis l'ancien container..."
-          docker cp ${CONTAINER_NAME}:/app/assets /tmp/assets_backup || true
-          docker stop ${CONTAINER_NAME} || true
-          docker rm ${CONTAINER_NAME} || true
-        fi
-        '''
+        sh 'docker build -t yabain/yabi-backend .'
       }
     }
-    
-    stage('Préparation Infrastructure') {
-      steps {
-        sh '''
-        # Création du volume persistant
-        mkdir -p ${ASSETS_VOLUME}
-        chown -R 1000:1000 ${ASSETS_VOLUME}  # UID/GID du user dans le container
-        chmod -R 775 ${ASSETS_VOLUME}
-        
-        # Si backup existe, restauration initiale
-        if [ -d "/tmp/assets_backup" ]; then
-          echo "Restauration initiale des assets..."
-          cp -r /tmp/assets_backup/* ${ASSETS_VOLUME}/ || true
-        fi
-        '''
-      }
-    }
-    
-    stage('Build Image') {
-      steps {
-        sh '''
-        docker build -t yabain/yabi-backend . \
-          --build-arg NODE_ENV=production \
-          --no-cache
-        '''
-      }
-    }
-    
-    stage('Authentification Docker Hub') {
+    stage('Login') {
       steps {
         sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
       }
     }
-    
-    stage('Déploiement Container') {
-      steps {
-        sh """
-        docker run -d \\
-          --name ${CONTAINER_NAME} \\
-          -p 3000:3000 \\
-          -v ${ASSETS_VOLUME}:/app/assets \\
-          -e BACK_URL=https://app.yabi.cm \\
-          -e NODE_ENV=production \\
-          --restart unless-stopped \\
-          --log-driver json-file \\
-          --log-opt max-size=10m \\
-          yabain/yabi-backend
-        """
-      }
-    }
-    
-    stage('Vérification Santé') {
-      steps {
-        sh '''
-        # Attente que le container soit healthy
-        timeout 120s bash -c '
-          while ! docker inspect --format "{{.State.Health.Status}}" ${CONTAINER_NAME} | grep -q "healthy"; do
-            sleep 2
-          done
-        ' || true
-        '''
-      }
-    }
-    
-    stage('Push Image') {
+    stage('Push') {
       steps {
         sh 'docker push yabain/yabi-backend'
       }
     }
   }
-  
   post {
     always {
-      sh '''
-      # Nettoyage
-      docker logout || true
-      rm -rf /tmp/assets_backup || true
-      '''
-    }
-    success {
-      slackSend(color: 'good', message: "Déploiement réussi - ${env.BUILD_URL}")
-    }
-    failure {
-      slackSend(color: 'danger', message: "Échec déploiement - ${env.BUILD_URL}")
+      sh 'docker logout'
     }
   }
 }
