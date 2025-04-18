@@ -30,6 +30,8 @@ async function bootstrap() {
       'https://localhost',
       'http://localhost:8100',
       'https://localhost:8100',
+      'http://localhost:4200',
+      'https://localhost:4200',
       'https://yabi.cm',
       'http://yabi.cm',
       'https://app.yabi.cm',
