@@ -36,6 +36,8 @@ async function bootstrap() {
       'http://yabi.cm',
       'https://app.yabi.cm',
       'http://app.yabi.cm',
+      'https://web.yabi.cm',
+      'http://web.yabi.cm',
       'capacitor://localhost',
       'ionic://localhost',
       '*',
