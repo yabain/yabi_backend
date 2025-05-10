@@ -24,24 +24,39 @@ async function bootstrap() {
   });
 
   // Configuration CORS renforcée
+  // app.enableCors({
+  //   origin: [
+  //     'http://localhost',
+  //     'https://localhost',
+  //     'http://localhost:8100',
+  //     'https://localhost:8100',
+  //     'http://localhost:4200',
+  //     'https://localhost:4200',
+  //     'https://yabi.cm',
+  //     'http://yabi.cm',
+  //     'https://app.yabi.cm',
+  //     'http://app.yabi.cm',
+  //     'https://web.yabi.cm',
+  //     'http://web.yabi.cm',
+  //     'capacitor://localhost',
+  //     'ionic://localhost',
+  //     '*',
+  //   ],
+  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  //   allowedHeaders: [
+  //     'Content-Type',
+  //     'Authorization',
+  //     'Accept',
+  //     'X-Requested-With',
+  //     'Origin',
+  //   ],
+  //   exposedHeaders: ['Authorization', 'Content-Length'],
+  //   // credentials: true,
+  //   preflightContinue: false,
+  //   optionsSuccessStatus: 204,
+  // });
   app.enableCors({
-    origin: [
-      'http://localhost',
-      'https://localhost',
-      'http://localhost:8100',
-      'https://localhost:8100',
-      'http://localhost:4200',
-      'https://localhost:4200',
-      'https://yabi.cm',
-      'http://yabi.cm',
-      'https://app.yabi.cm',
-      'http://app.yabi.cm',
-      'https://web.yabi.cm',
-      'http://web.yabi.cm',
-      'capacitor://localhost',
-      'ionic://localhost',
-      '*',
-    ],
+    origin: true, // Autoriser toutes les origines
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: [
       'Content-Type',
@@ -51,7 +66,7 @@ async function bootstrap() {
       'Origin',
     ],
     exposedHeaders: ['Authorization', 'Content-Length'],
-    // credentials: true,
+    credentials: true, // Si vous avez besoin des cookies/sessions
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
