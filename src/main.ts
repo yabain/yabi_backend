@@ -118,7 +118,7 @@ async function bootstrap() {
   // Configuration Swagger
   const config = new DocumentBuilder()
     .setTitle('Yabi API')
-    .setDescription("Yabi API Documentation")
+    .setDescription('Yabi API Documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
