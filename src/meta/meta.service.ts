@@ -53,7 +53,6 @@ export class MetaService {
           </body>
           </html>
           `;
-
       return res.send(html);
     }
 
