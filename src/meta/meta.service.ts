@@ -28,7 +28,7 @@ export class MetaService {
     // Checks if the request comes from a social network crawler
     const userAgent = req.headers['user-agent']?.toLowerCase() || '';
     const isSocialMediaBot =
-      /facebook|messenger|twitter|whatsapp|linkedin|pinterest|slack|telegram|instagram|metatags|discord/i.test(
+      /facebook|messenger|twitter|whatsapp|linkedin|pinterest|slack|telegram|instagram|discord/i.test(
         userAgent,
       );
 
