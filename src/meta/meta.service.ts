@@ -55,8 +55,7 @@ export class MetaService {
           `;
       return res.send(html);
     }
-    // albertdjuayanjinkeu88@gmail.com
-    // Jemimakate2022?
+    
     // Redirection normale pour les navigateurs
     return res.redirect(
       `${this.configService.get<string>('FRONT_URL')}/tabs/events/${eventId}_shared`,
