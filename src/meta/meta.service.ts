@@ -16,6 +16,7 @@ export class MetaService {
     private readonly ticketService: TicketService,
   ) {}
 
+
   async getEventMeta(eventId, res, req): Promise<any> {
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       throw new NotFoundException('Invalid event ID');
