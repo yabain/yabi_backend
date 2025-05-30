@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-// meta.controller.ts
 import { Controller, Get, Param, Req, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { MetaService } from './meta.service';
