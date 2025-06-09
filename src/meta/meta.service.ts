@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventService } from 'src/event/event.service';
 import * as mongoose from 'mongoose';
