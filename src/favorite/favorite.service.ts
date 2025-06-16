@@ -28,7 +28,7 @@ export class FavoriteService {
    * @throws NotFoundException if ticket classes are not found.
    */
   async gestAllFavoritesEventOfUser(id: any, query: Query): Promise<Event[]> {
-    const resPerPage = 10;
+    const resPerPage = 25;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
 
@@ -68,6 +68,7 @@ export class FavoriteService {
       events = [...events, eventData];
     }
 
+    console.log('Events', events);
     return events;
   }
 
@@ -121,6 +122,7 @@ export class FavoriteService {
       userId: userId,
       eventId: eventId,
     };
+    console.log('Adding to favorite', follow);
 
     const addData = await this.favoriteModel.create(follow);
 
