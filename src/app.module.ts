@@ -22,6 +22,8 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationModule } from './notification/notification.module';
 import { MetaModule } from './meta/meta.module';
 import { TransactionModule } from './transaction/transaction.module';
+import { AlertModule } from './alert/alert.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { TransactionModule } from './transaction/transaction.module';
     NotificationModule,
     MetaModule,
     TransactionModule,
+    AlertModule,
+    WhatsappModule,
   ],
   controllers: [AppController],
   providers: [AppService],

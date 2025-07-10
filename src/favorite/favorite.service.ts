@@ -122,7 +122,7 @@ export class FavoriteService {
       userId: userId,
       eventId: eventId,
     };
-    console.log('Adding to favorite', follow);
+    // console.log('Adding to favorite', follow);
 
     const addData = await this.favoriteModel.create(follow);
 

@@ -107,22 +107,46 @@ export class TicketService {
 
     const createdTicket = await this.ticketModel.create(ticketData);
 
+    // Envoi d'email non-bloquant et indépendant
+    if (sendMail && user.email) {
+      this.sendEmailNonBlocking(ticketClassData.eventId._id, user).catch(
+        (error) => {
+          console.error(
+            'Failed to send participation email (non-blocking):',
+            error,
+          );
+        },
+      );
+    }
+
+    return createdTicket;
+  }
+
+  /**
+   * Envoie un email de participation de manière non-bloquante
+   * Cette méthode s'exécute de manière indépendante sans affecter le flux principal
+   * @param eventId - ID de l'événement
+   * @param user - Données de l'utilisateur
+   */
+  private async sendEmailNonBlocking(
+    eventId: string,
+    user: User,
+  ): Promise<void> {
     try {
       const eventData = await this.eventModel
-        .findById(ticket.eventId)
+        .findById(eventId)
         .populate('cityId')
         .populate('countryId')
         .populate('categoryId')
         .exec();
 
-      if (eventData && user.email && sendMail) {
+      if (eventData) {
         await this.senMail(eventData, user);
       }
     } catch (error) {
-      console.error('Failed to send participation email:', error);
+      console.error('Error in non-blocking email sending:', error);
+      // Ne pas relancer l'erreur pour éviter d'affecter le flux principal
     }
-
-    return createdTicket;
   }
 
   async senMail(eventData: any, user: any, price?: number): Promise<any> {
@@ -131,7 +155,7 @@ export class TicketService {
       user.language || 'en', // Default value if language not defined
       user.name || `${user.firstName} ${user.lastName}`,
       {
-        price: price ? `${price} FCFA` : 0,
+        price: price ? `${price} FCFA` : 'FREE',
         eventData: {
           _id: eventData._id,
           title: eventData.title,

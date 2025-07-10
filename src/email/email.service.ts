@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as handlebars from 'handlebars';
 import { DateService } from './date.service';
+import { createEvent } from 'ics';
 
 const OAuth2 = google.auth.OAuth2;
 @Injectable()
@@ -149,8 +150,8 @@ export class EmailService {
     const templateName = 'participate-free-event';
     const subject =
       language === 'fr'
-        ? 'Participation à un événement'
-        : 'Event participation';
+        ? 'Évènement: ' + event.eventData.title
+        : 'Event: ' + event.eventData.title;
 
     const templatePath = path.join(
       this.templateFolder,
@@ -166,30 +167,86 @@ export class EmailService {
       event_title: event.eventData.title,
       event_category: event.categoryData.name,
       event_price: event.eventData.paid === true ? event.price : 'FREE',
-      event_description: event.eventData.description,
+      event_description: this.cleanString(event.eventData.description),
       event_country: event.countryData.name,
       event_city: event.cityData.name,
       event_location: event.eventData.location,
       event_start:
-        this.dateService.formatDate(event.eventData.dateStart, language) +
+        this.dateService.formatDate(
+          event.eventData.dateStart,
+          'long',
+          language,
+        ) +
         ' - ' +
         this.dateService.formatTime(event.eventData.dateStart, language),
       event_end:
-        this.dateService.formatDate(event.eventData.dateEnd, language) +
+        this.dateService.formatDate(event.eventData.dateEnd, 'long', language) +
         ' - ' +
         this.dateService.formatTime(event.eventData.dateEnd, language),
       event_url: `${this.configService.get<string>('FRONT_URL')}/tabs/events/${event.eventData._id}_shared`,
     };
 
     const html = template(context);
+    const icsAttachment = await this.generateIcsFile(event);
 
     await this.transporter.sendMail({
       from: this.configService.get<string>('EMAIL_TEAM'),
       to: toEmail,
       subject,
       html,
+      attachments: [
+        {
+          filename: icsAttachment.filename,
+          content: icsAttachment.content,
+          contentType: 'text/calendar',
+        },
+      ],
     });
 
     return true;
+  }
+
+  private generateIcsFile(
+    event: any,
+  ): Promise<{ filename: string; content: Buffer }> {
+    return new Promise((resolve, reject) => {
+      const eventDetails = {
+        start: this.dateService.convertToIcsDate(event.eventData.dateStart),
+        end: this.dateService.convertToIcsDate(event.eventData.dateEnd),
+        title: event.eventData.title,
+        description: this.cleanString(event.eventData.description),
+        location: event.eventData.location,
+        url: `${this.configService.get<string>('FRONT_URL')}/tabs/events/${event.eventData._id}_shared`,
+        organizer: {
+          name: 'Yabi Events',
+          email: this.configService.get<string>('EMAIL_TEAM'),
+        },
+      };
+
+      createEvent(eventDetails, (error, value) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve({
+            filename: 'YabiEvents.ics',
+            content: Buffer.from(value),
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * Remove all HTML tags and occurrences of \r, \n, and \t from a string.
+   * @param input The input string to clean.
+   * @returns The cleaned string.
+   */
+  cleanString(input: string): string {
+    // Remove HTML tags using regex
+    let result = input.replace(/<[^>]*>/g, '');
+    // Remove \r, \n, and \t characters
+    result = result.replace(/[\r\n\t]/g, '');
+    // console.log('cleaned string: ', result);
+    return result;
   }
 }

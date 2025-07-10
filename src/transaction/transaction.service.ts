@@ -10,9 +10,9 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { HttpService } from '@nestjs/axios';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ReqStatus } from './transaction.schema';
+import { ReqStatus, PaymentMethode } from './transaction.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './transaction.schema';
 import * as mongoose from 'mongoose';
@@ -21,9 +21,11 @@ import { Query } from 'express-serve-static-core';
 import { CreateTransactionDto } from './create-transaction.dto';
 import { firstValueFrom } from 'rxjs';
 import { TicketService } from 'src/ticket/ticket.service';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class TransactionService {
+  private readonly logger = new Logger(TransactionService.name);
   constructor(
     @InjectModel(Transaction.name)
     private transactionModel: mongoose.Model<Transaction>,
@@ -112,7 +114,10 @@ export class TransactionService {
       const depositData = {
         amount: Number(paymentData.paymentWithTaxes),
         type: 'deposit',
-        paymentMode: 'ORANGE',
+        paymentMode:
+          paymentData.paymentMethod === 'OM'
+            ? PaymentMethode.OM
+            : PaymentMethode.MTN,
         moneyCode: 'XAF',
         userRef: {
           fullName: paymentData.userName,
@@ -122,6 +127,7 @@ export class TransactionService {
         appID: this.configService.get<string>('PAYMENT_GATWAY_KEY'),
       };
 
+      console.log('depositData: ', depositData);
       const response = await firstValueFrom(
         this.httpService.post(depositEndPoint, depositData, {
           headers: {
@@ -171,12 +177,14 @@ export class TransactionService {
         );
         if (response.data.statusCode === 200) {
           if (newTransactionData.reqStatus === ReqStatus.SUCCESS) {
-            return await this.handleTransactionStateSuccess(
+            await this.handleTransactionStateSuccess(
               newTransactionData,
               userData,
             );
+            return; // On arrête la boucle
           } else if (newTransactionData.reqStatus === ReqStatus.ERROR) {
-            return await this.handleTransactionStateError(newTransactionData);
+            await this.handleTransactionStateError(newTransactionData);
+            return; // On arrête la boucle
           }
         }
       } catch (error) {
@@ -184,9 +192,15 @@ export class TransactionService {
       }
       attempts++;
       if (attempts < maxAttempts) {
-        setTimeout(checkStatus, 5000); // Vérifie à nouveau dans 5 secondes
+        setTimeout(checkStatus, 5000);
       } else {
+        // Ici, on peut marquer la transaction comme échouée ou notifier l'utilisateur
         console.warn('Max attempts reached, stopping transaction check.');
+        await this.handleTransactionStateError({
+          ...transactionData,
+          message: 'Transaction timeout: no final state after max attempts',
+          reqStatus: ReqStatus.ERROR,
+        });
       }
     };
 
@@ -489,5 +503,38 @@ export class TransactionService {
     const targetDateTime = new Date(`${dateStr}`);
     const currentDateTime = new Date();
     return targetDateTime > currentDateTime;
+  }
+
+  @Cron('*/15 * * * * *') // toutes les 15 secondes
+  async processPendingTransactions() {
+    // Si ReqStatus.PENDING ne correspond pas à la valeur attendue, utiliser la chaîne littérale
+    const pendingStatus =
+      typeof ReqStatus.PENDING === 'string' &&
+      ReqStatus.PENDING.toLowerCase().includes('pending')
+        ? ReqStatus.PENDING
+        : 'financial_transaction_pending';
+    const pendingTransactions = await this.transactionModel
+      .find({ reqStatus: pendingStatus })
+      .populate('userId')
+      .exec();
+
+    this.logger.log(
+      `Nombre de transactions en attente : ${pendingTransactions.length}`
+    );
+    await Promise.all(
+      pendingTransactions.map(async (transaction: any) => {
+        try {
+          // handleTransactionStatePending doit être idempotente !
+          await this.handleTransactionStatePending(
+            transaction,
+            transaction.userId,
+          );
+        } catch (err) {
+          this.logger.error(
+            `Erreur sur la transaction ${String(transaction._id)}: ${err}`,
+          );
+        }
+      }),
+    );
   }
 }

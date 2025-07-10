@@ -66,6 +66,9 @@ export class NotificationService {
     const notificationsList = await this.notificationModel
       .find({ userToId: userId2 })
       .populate('eventId')
+      .populate('ticketId')
+      .populate('transactionId')
+      .populate('alertId')
       .populate('userFromId')
       .sort({ createdAt: -1 }) // Tri par createdAt en ordre décroissant
       .limit(resPerPage)
@@ -99,7 +102,7 @@ export class NotificationService {
       notifId: notifId,
       userToId: userId,
     });
-    console.log('notif: ', notif);
+    // console.log('notif: ', notif);
     if (notif) {
       const notification = await this.notificationModel.findByIdAndUpdate(
         notifId,

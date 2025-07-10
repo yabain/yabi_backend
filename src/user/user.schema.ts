@@ -55,7 +55,7 @@ export class User extends Document {
   lastName: string;
 
   @Prop()
-  language: string;
+  language: string; // en || fr
 
   @Prop()
   name: string;

@@ -7,6 +7,8 @@ import { UserSchema } from '../user/user.schema';
 import { EventSchema } from '../event/event.schema';
 import { AuthModule } from '../auth/auth.module';
 import { FollowSchema } from '../follow/follow.schema';
+import { TransactionSchema } from '../transaction/transaction.schema';
+import { TicketSchema } from '../ticket/ticket.schema';
 
 @Module({
   imports: [
@@ -14,6 +16,10 @@ import { FollowSchema } from '../follow/follow.schema';
     MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
     MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
     MongooseModule.forFeature([{ name: 'Follow', schema: FollowSchema }]),
+    MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
+    MongooseModule.forFeature([
+      { name: 'Transaction', schema: TransactionSchema },
+    ]),
     MongooseModule.forFeature([
       { name: 'Notification', schema: NotificationSchema },
     ]),

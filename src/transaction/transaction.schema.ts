@@ -8,11 +8,13 @@ import { EventCategories } from 'src/event-categories/event-categories.schema';
 export enum TransactionType {
   DEPOSITE = 'deposit',
   WITHDRAWAL = 'withdrawal',
+  PAYMENT = 'payment',
 }
 
 export enum Currency {
-  DEPOSITE = 'XAF',
-  WITHDRAWAL = 'EU',
+  XAF = 'XAF',
+  EU = 'EU',
+  USD = 'USD',
 }
 
 export enum ReqStatus {

@@ -22,6 +22,15 @@ export class Notification extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Event' })
   eventId: Event;
 
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Ticket' })
+  ticketId: Event;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' })
+  transactionId: Event;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Alert' })
+  alertId: Event;
+
   @Prop()
   type: NotifType;
 
