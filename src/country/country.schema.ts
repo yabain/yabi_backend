@@ -7,6 +7,9 @@ import { Document } from 'mongoose';
 export class Country extends Document {
   @Prop({ unique: true })
   name: string;
+
+  @Prop({ unique: true })
+  code: string;
 }
 
 export const CountrySchema = SchemaFactory.createForClass(Country);

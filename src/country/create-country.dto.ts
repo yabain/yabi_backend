@@ -9,4 +9,8 @@ export class CreateCountryDto {
   @IsNotEmpty()
   @MinLength(4)
   readonly name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly code: string;
 }
