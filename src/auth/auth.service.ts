@@ -17,6 +17,7 @@ import { CreateUserDto } from 'src/user/create-user.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RevokedToken } from 'src/revoked-token/revoked-token.schema';
 import { EmailService } from 'src/email/email.service';
+import { WhatsappService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +28,7 @@ export class AuthService {
     private revokedTokenModel: Model<RevokedToken>, // Injectez le modèle pour les tokens révoqués
     private jwtService: JwtService, // Injecting the JwtService for token generation
     private emailService: EmailService,
+    private whatsappService: WhatsappService,
   ) {}
 
   /**
@@ -85,6 +87,8 @@ export class AuthService {
         userName,
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.whatsappService.welcomeMessage(user, true);
       // Return the user data and a JWT token for authentication
       return { userData: user, token: this.jwtService.sign({ id: user._id }) };
     } catch (error) {

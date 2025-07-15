@@ -5,6 +5,12 @@ import { Document } from 'mongoose';
 export class WhatsappQr extends Document {
   @Prop({ required: true })
   qr: string;
+
+  @Prop()
+  status: boolean; // True if linked sucsseful an false if connexion failed
+
+  @Prop()
+  message: string;
 }
 
 export const WhatsappQrSchema = SchemaFactory.createForClass(WhatsappQr);

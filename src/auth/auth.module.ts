@@ -13,6 +13,8 @@ import { HttpModule } from '@nestjs/axios';
 import { RevokedTokenSchema } from '../revoked-token/revoked-token.schema';
 import { EmailService } from 'src/email/email.service';
 import { DateService } from 'src/email/date.service';
+import { WhatsappService } from 'src/whatsapp/whatsapp.service';
+import { WhatsappQr, WhatsappQrSchema } from 'src/whatsapp/whatsapp-qr.schema';
 
 @Module({
   imports: [
@@ -25,16 +27,25 @@ import { DateService } from 'src/email/date.service';
         signOptions: {
           expiresIn: configService.get('JWT_EXPIRES'),
         },
-        ignoreExpiration: false, // Ajoutez cette ligne
+        ignoreExpiration: false,
       }),
     }),
     MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: WhatsappQr.name, schema: WhatsappQrSchema },
+    ]),
     MongooseModule.forFeature([
       { name: 'RevokedToken', schema: RevokedTokenSchema },
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, EmailService, DateService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    EmailService,
+    DateService,
+    WhatsappService,
+  ],
   exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}

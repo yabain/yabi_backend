@@ -73,6 +73,19 @@ export class EmailService {
     });
   }
 
+  async sendEmail(
+    toEmail: string,
+    subject: string,
+    message: string,
+  ): Promise<void> {
+    await this.transporter.sendMail({
+      from: this.configService.get<string>('EMAIL_TEAM'),
+      to: toEmail,
+      subject,
+      html: message,
+    });
+  }
+
   async sendWelcomeEmailAccountCreation(
     toEmail: string,
     language: string,
