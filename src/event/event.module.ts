@@ -19,6 +19,7 @@ import { NotificationSchema } from '../notification/notification.schema';
 import { NotificationService } from '../notification/notification.service';
 import { EmailService } from 'src/email/email.service';
 import { DateService } from 'src/email/date.service';
+import { WhatsappModule } from 'src/whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { DateService } from 'src/email/date.service';
     ]),
     MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
     MongooseModule.forFeature([{ name: Follow.name, schema: FollowSchema }]),
+    WhatsappModule,
   ],
   controllers: [EventController],
   providers: [

@@ -16,6 +16,7 @@ import { Event, EventSchema } from 'src/event/event.schema';
 import { Country, CountrySchema } from 'src/country/country.schema';
 import { City, CitySchema } from 'src/city/city.schema';
 import { DateService } from 'src/email/date.service';
+import { WhatsappModule } from 'src/whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { DateService } from 'src/email/date.service';
       { name: TicketClasses.name, schema: TicketClassesSchema },
     ]),
     TicketModule,
+    WhatsappModule,
   ],
   providers: [TransactionService, TicketService, EmailService, DateService],
   controllers: [TransactionController],

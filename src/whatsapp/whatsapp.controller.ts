@@ -34,9 +34,9 @@ export class WhatsappController {
   // @UsePipes(ValidationPipe)
   async getQr(@Req() req): Promise<any> {
     console.log('get QR-Code');
-    if (!req.user.isAdmin) {
-      throw new NotFoundException('Unautorised');
-    }
+    // if (!req.user.isAdmin) {
+    //   throw new NotFoundException('Unautorised');
+    // }
     return this.whatsappService.getCurrentQr();
   }
 
@@ -44,10 +44,10 @@ export class WhatsappController {
   // @UseGuards(AuthGuard('jwt'))
   // @UsePipes(ValidationPipe)
   async refreshQr(@Req() req): Promise<any> {
-    console.log('get QR-Code');
-    if (!req.user.isAdmin) {
-      throw new NotFoundException('Unautorised');
-    }
+    console.log('refresh QR-Code');
+    // if (!req.user.isAdmin) {
+    //   throw new NotFoundException('Unautorised');
+    // }
     return this.whatsappService.refreshQr();
   }
 

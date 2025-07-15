@@ -125,6 +125,8 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   /** Delay between health checks (in milliseconds) */
   private readonly healthCheckDelay = 60000; // 60 seconds
 
+  private ResultsLimite = 1000;
+
   count: number = 0;
 
   // Mass failure monitoring
@@ -328,11 +330,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       ' isPreocessing: ',
       this.isProcessingQueue,
     );
-    if (
-      this.isProcessingQueue ||
-      !this.isReady ||
-      this.messageQueue.length === 0
-    ) {
+    if (this.isProcessingQueue || !this.isReady) {
       return;
     }
 
@@ -463,7 +461,8 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     this.needToScan = false;
     this.logger.log('Client ready');
     this.updateQrStatus(true, 'Client ready');
-    this.sendMessage('91224472', ' *Whatsapp service is Ready* ', '237');
+    this.sendMessage('91224472', ' ✅ ✅ *WhatsApp Service is ready* ', '237');
+    this.sendWhatsappConnectedNotification();
     this.processQueueBatch();
 
     // Start health monitoring
@@ -523,6 +522,8 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       success,
       messageId,
     });
+    this.cleanUpSuccessfulResults(this.recentProcessingResults);
+
     console.log(
       'this.recentProcessingResults -0- ',
       this.recentProcessingResults,
@@ -536,10 +537,33 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       (result) => result.timestamp > cutoffTime,
     );
 
+    this.cleanUpSuccessfulResults(this.recentProcessingResults);
     console.log(
       'this.recentProcessingResults -1- ',
       this.recentProcessingResults,
     );
+  }
+  private cleanUpSuccessfulResults(
+    recentProcessingResults: Array<{
+      timestamp: Date;
+      success: boolean;
+      messageId: string;
+    }>,
+    maxSize: number = this.ResultsLimite,
+  ) {
+    if (recentProcessingResults.length <= maxSize) return;
+
+    const failures = recentProcessingResults.filter(
+      (result) => result.success === false,
+    );
+
+    while (failures.length > maxSize) {
+      failures.shift();
+    }
+
+    recentProcessingResults.length = 0;
+    recentProcessingResults.push(...failures);
+    this.recentProcessingResults = recentProcessingResults;
   }
 
   /**
@@ -643,7 +667,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
         subject,
         message,
       );
-      // this.disconnect();
+      this.disconnect();
     } catch (error) {
       this.logger.error(`Failed to send mass failure alert: ${error.message}`);
     }
@@ -773,6 +797,44 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       );
     } catch (error) {
       this.logger.error(`Failed to send mass failure alert: ${error.message}`);
+    }
+  }
+
+  private async sendWhatsappConnectedNotification(
+    info?: string,
+  ): Promise<void> {
+    if (this.alertSent) return;
+    if (!info) info = '✅ ✅ WhatsApp Service is ready';
+
+    try {
+      const subject =
+        `✅ ✅ WhatsApp Service is ready - Yabi Events ` +
+        new Date().toISOString();
+      const message = `
+        <h2>WhatsApp messaging service: ${info}</h2>
+        <p>The system is ready to send messages using Whatsapp service.</p>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Time Window:</strong> Last ${this.massFailureConfig.timeWindowMinutes} minutes</p>
+        <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
+        <p><strong>Queue Length:</strong> ${this.messageQueue.length}</p>
+        <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
+
+        <p><em>This is an automated notification from the Yabi Events WhatsApp service.</em></p>
+      `;
+
+      await this.emailService.sendEmail(
+        this.massFailureConfig.alertEmail,
+        subject,
+        message,
+      );
+
+      this.logger.debug(
+        `${info} notification would be sent to ${this.massFailureConfig.alertEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send Whatsapp Connected Notification: ${error.message}`,
+      );
     }
   }
 
@@ -961,11 +1023,17 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   public async refreshQr() {
-    if (!this.isReady) {
-      this.client.on('qr', async (qr) => {
-        return this.handleQrCode(qr);
-      });
-    }
+    console.log('refreshQr');
+    console.log(
+      'isReady: ',
+      this.isReady,
+      ' isPreocessing: ',
+      this.isProcessingQueue,
+    );
+    this.setupEventHandlers();
+    const qr = await this.getCurrentQr();
+    qrcode.generate(qr, { small: true });
+    return qr;
   }
 
   /**
@@ -1086,6 +1154,13 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * ```
    */
   async getCurrentQr(): Promise<string | null> {
+    console.log('getCurrentQr');
+    console.log(
+      'isReady: ',
+      this.isReady,
+      ' isPreocessing: ',
+      this.isProcessingQueue,
+    );
     try {
       const qrDoc = await this.qrModel.findOne({});
       return qrDoc?.qr || null;
@@ -1140,50 +1215,54 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private buildFrenchWelcomeMessage(user: User): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
     return (
-      `Hello *${user.firstName} !!*\n\n` +
+      `Hello *${userName} !!*\n\n` +
       `Nous sommes ravis de vous accueillir sur *Yabi Events*\n` +
-      `Votre solution tout-en-un pour la gestion d'événements.\n\n` +
+      `Votre solution intelligente tout-en-un pour la gestion d'événements.\n\n` +
       `🔗 _Rendez-vous sur_ :\n${this.frontUrl}` +
-      `\n\n\n> Ceci est un message automatisé du service WhatsApp de Yabi Events.`
+      `\n\n\n> Ceci est un message automatique du service WhatsApp de Yabi Events.`
     );
   }
 
   private buildEnglishWelcomeMessage(user: User): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
     return (
-      `Hello *${user.firstName} !!*\n\n` +
+      `Hello *${userName} !!*\n\n` +
       `We are thrilled to welcome you to *Yabi Events*\n` +
-      `Your all-in-one solution for event management.\n\n` +
+      `Your smart all-in-one solution for event management.\n\n` +
       `🔗 _Visit us at:_\n${this.frontUrl}` +
-      `\n\n\n> This is an automated message from the Yabi Events WhatsApp service.`
+      `\n\n\n> This is an automatic message from the Yabi Events WhatsApp service.`
     );
   }
 
   private buildFrenchEventMessage(user: User, event: any): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
     return (
       `*Votre place est assurée !*\n\n` +
-      `Hello ${user.firstName}\n` +
+      `Hello ${userName}\n` +
       `Nous avons réservé votre place pour *${event.event_title}*\n` +
       `* Début : ${event.event_start}\n` +
       `* Fin : ${event.event_end}\n` +
       `* Lieu : ${event.event_country}, ${event.event_city},\n` +
       `${event.event_location}\n\n` +
       `🔗 _A propos de l'event :_ ${event.event_url}` +
-      `\n\n\n> Ceci est un message automatisé du service WhatsApp de Yabi Events.`
+      `\n\n\n> Ceci est un message automatique du service WhatsApp de Yabi Events.`
     );
   }
 
   private buildEnglishEventMessage(user: User, event: any): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
     return (
       `*Your seat is reserved !*\n\n` +
-      `Hello ${user.firstName}\n` +
+      `Hello ${userName}\n` +
       `We have reserved your seat for *${event.event_title}*\n` +
       `* Start : ${event.event_start}\n` +
       `* End : ${event.event_end}\n` +
       `* Location : ${event.event_country}, ${event.event_city},\n` +
       `${event.event_location}\n\n` +
       `🔗 _About event :_ ${event.event_url}` +
-      `\n\n\n> This is an automated message from the Yabi Events WhatsApp service.`
+      `\n\n\n> This is an automatic message from the Yabi Events WhatsApp service.`
     );
   }
 }

@@ -154,21 +154,17 @@ export class EmailService {
     return true;
   }
 
-  async sendEventParticipationEmail(
-    toEmail: string,
-    language: string,
-    userName: string,
-    event: any,
-  ): Promise<boolean> {
+  async sendEventParticipationEmail(user: any, event: any): Promise<boolean> {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
     const templateName = 'participate-free-event';
     const subject =
-      language === 'fr'
+      user.language === 'fr'
         ? 'Évènement: ' + event.eventData.title
         : 'Event: ' + event.eventData.title;
 
     const templatePath = path.join(
       this.templateFolder,
-      `${templateName}_${language}.hbs`,
+      `${templateName}_${user.language}.hbs`,
     );
 
     const templateSource = fs.readFileSync(templatePath, 'utf8');
@@ -188,14 +184,18 @@ export class EmailService {
         this.dateService.formatDate(
           event.eventData.dateStart,
           'long',
-          language,
+          user.language,
         ) +
         ' - ' +
-        this.dateService.formatTime(event.eventData.dateStart, language),
+        this.dateService.formatTime(event.eventData.dateStart, user.language),
       event_end:
-        this.dateService.formatDate(event.eventData.dateEnd, 'long', language) +
+        this.dateService.formatDate(
+          event.eventData.dateEnd,
+          'long',
+          user.language,
+        ) +
         ' - ' +
-        this.dateService.formatTime(event.eventData.dateEnd, language),
+        this.dateService.formatTime(event.eventData.dateEnd, user.language),
       event_url: `${this.configService.get<string>('FRONT_URL')}/tabs/events/${event.eventData._id}_shared`,
     };
 
@@ -204,7 +204,7 @@ export class EmailService {
 
     await this.transporter.sendMail({
       from: this.configService.get<string>('EMAIL_TEAM'),
-      to: toEmail,
+      to: user.email,
       subject,
       html,
       attachments: [

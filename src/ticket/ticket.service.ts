@@ -20,6 +20,7 @@ import { Country } from 'src/country/country.schema';
 import { City } from 'src/city/city.schema';
 import { EmailService } from 'src/email/email.service';
 import { User } from 'src/user/user.schema';
+import { WhatsappService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class TicketService {
@@ -35,6 +36,7 @@ export class TicketService {
     @InjectModel(City.name)
     private cityModel: mongoose.Model<City>,
     private emailService: EmailService,
+    private whatsappService: WhatsappService,
   ) {}
 
   async getAllTicketsOfEvent(id: string): Promise<Ticket[]> {
@@ -117,7 +119,6 @@ export class TicketService {
           );
         },
       );
-      
     }
 
     return createdTicket;
@@ -143,6 +144,7 @@ export class TicketService {
 
       if (eventData) {
         await this.senMail(eventData, user);
+        await this.whatsappService.participateToEventMessage(user._id, event);
       }
     } catch (error) {
       console.error('Error in non-blocking email sending:', error);
@@ -151,39 +153,34 @@ export class TicketService {
   }
 
   async senMail(eventData: any, user: any, price?: number): Promise<any> {
-    return await this.emailService.sendEventParticipationEmail(
-      user.email,
-      user.language || 'en', // Default value if language not defined
-      user.name || `${user.firstName} ${user.lastName}`,
-      {
-        price: price ? `${price} FCFA` : 'FREE',
-        eventData: {
-          _id: eventData._id,
-          title: eventData.title,
-          description: eventData.description,
-          cover: eventData.cover,
-          dateStart: eventData.dateStart,
-          dateEnd: eventData.dateEnd,
-          location: eventData.location,
-          paid: eventData.paid,
-        },
-        categoryData: eventData.categoryId
-          ? {
-              name: eventData.categoryId.name,
-            }
-          : null,
-        countryData: eventData.countryId
-          ? {
-              name: eventData.countryId.name,
-            }
-          : null,
-        cityData: eventData.cityId
-          ? {
-              name: eventData.cityId.name,
-            }
-          : null,
+    return await this.emailService.sendEventParticipationEmail(user, {
+      price: price ? `${price} FCFA` : 'FREE',
+      eventData: {
+        _id: eventData._id,
+        title: eventData.title,
+        description: eventData.description,
+        cover: eventData.cover,
+        dateStart: eventData.dateStart,
+        dateEnd: eventData.dateEnd,
+        location: eventData.location,
+        paid: eventData.paid,
       },
-    );
+      categoryData: eventData.categoryId
+        ? {
+            name: eventData.categoryId.name,
+          }
+        : null,
+      countryData: eventData.countryId
+        ? {
+            name: eventData.countryId.name,
+          }
+        : null,
+      cityData: eventData.cityId
+        ? {
+            name: eventData.cityId.name,
+          }
+        : null,
+    });
   }
 
   async createMultipleTicket(transactionData: any, userData): Promise<boolean> {
