@@ -52,7 +52,7 @@ interface QueuedMessage {
  *
  */
 @Injectable()
-export class WhatsappService implements OnModuleInit {
+export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsappService.name);
 
   /** WhatsApp Web client instance */
@@ -90,7 +90,7 @@ export class WhatsappService implements OnModuleInit {
   private healthCheckInterval: NodeJS.Timeout;
 
   /** Delay between health checks (in milliseconds) */
-  private readonly healthCheckDelay = 60 * 1000; // 60 seconds
+  private readonly healthCheckDelay = 60000; // 60 seconds
 
   private ResultsLimite = 1000;
 
@@ -143,11 +143,12 @@ export class WhatsappService implements OnModuleInit {
    * Cleans up resources when the module is destroyed.
    * Stops health monitoring, clears timeouts, and destroys the WhatsApp client.
    */
-  // onModuleDestroy() {
-  //   this.stopHealthCheck();
-  //   if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
-  //   if (this.client) this.disconnect();
-  // }
+  onModuleDestroy() {
+    // Clean up resources
+    this.stopHealthCheck();
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    if (this.client) this.disconnect();
+  }
 
   /**
    * Initializes the WhatsApp Web client with session persistence and event handlers.
@@ -165,6 +166,28 @@ export class WhatsappService implements OnModuleInit {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection',
+            '--disable-default-apps',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-sync',
+            '--disable-translate',
+            '--hide-scrollbars',
+            '--mute-audio',
+            '--no-default-browser-check',
+            '--safebrowsing-disable-auto-update',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--memory-pressure-off',
+            '--max_old_space_size=4096',
           ],
         },
       });
@@ -172,14 +195,13 @@ export class WhatsappService implements OnModuleInit {
       // ATTACHE LES HANDLERS AVANT D'INITIALISER
       this.setupEventHandlers();
       await this.client.initialize();
-      return true;
     } catch (err) {
       const message = `Error initializing WhatsApp client : ${err.message}`;
       this.updateQrStatus(false, message);
       this.logger.error(message);
       this.handleDisconnect();
       setTimeout(() => this.initWhatsapp(), 30 * 1000);
-      return message;
+      throw new Error(message);
     }
   }
 
@@ -231,7 +253,21 @@ export class WhatsappService implements OnModuleInit {
       console.error('setupEventHandlers: this.client is undefined!');
       return;
     }
-    this.startHealthCheck();
+    // Affiche les propriétés du client pour voir son état
+    console.log('Client keys:', Object.keys(this.client));
+    console.log('Client info:', this.client.info);
+    // Si possible, affiche l’état de la page Puppeteer
+    const page = (this.client as any).pupPage || (this.client as any).page;
+    if (page) {
+      if (typeof page.isClosed === 'function') {
+        console.log('Puppeteer page is closed:', page.isClosed());
+      }
+      if (typeof page.url === 'function') {
+        console.log('Puppeteer page URL:', page.url());
+      }
+    } else {
+      console.log('No puppeteer page found on client');
+    }
 
     this.client.on('qr', async (qr) => this.handleQrCode(qr));
 
@@ -244,6 +280,8 @@ export class WhatsappService implements OnModuleInit {
 
   private async handleQrCode(qr) {
     console.log('handleQrCode');
+    // this.isReady = false;
+    this.needToScan = true;
     const message =
       'Received QR code for WhatsApp Web. Scan it with your phone.';
     this.logger.warn(message);
@@ -255,7 +293,6 @@ export class WhatsappService implements OnModuleInit {
 
     try {
       if (this.isReady) return;
-      this.needToScan = true;
       await this.qrModel.findOneAndUpdate(
         {},
         { qr, status: false, message: 'Awaiting QR scan' },
@@ -275,19 +312,24 @@ export class WhatsappService implements OnModuleInit {
     this.needToScan = false;
     this.logger.log('Client ready');
     this.updateQrStatus(true, 'Client ready');
-    const qrDoc = await this.qrModel.findOne({});
+    const qrDoc: any = await this.qrModel.findOne({});
+    if (!qrDoc) {
+      qrDoc.code = '237';
+      qrDoc.phone = '91224472';
+    }
     this.sendMessage(
-      qrDoc?.contact ? qrDoc.contact : '91224472',
+      qrDoc.code,
       ' ✅ ✅ *WhatsApp Service is ready* ',
-      qrDoc?.code ? qrDoc.code : '237',
+      qrDoc.phone,
     );
     this.sendWhatsappConnectedNotification();
     // Start health monitoring
-    // this.startHealthCheck();
+    this.startHealthCheck();
   }
 
   private handleAuthFailure(msg) {
     console.log('handlAuthFailure');
+    // this.isReady = false;
     this.needToScan = false;
     const message = `Auth failure: ${msg}`;
     this.logger.error(message);
@@ -297,6 +339,7 @@ export class WhatsappService implements OnModuleInit {
 
   private handleDisconnected(reason) {
     console.log('handleDisconnected');
+    // this.isReady = false;
     this.needToScan = false;
     const message = `Disconnected: ${reason}`;
     if (reason === 'LOGOUT') return this.disconnect();
@@ -381,6 +424,7 @@ export class WhatsappService implements OnModuleInit {
 
   private async sendConnexionFailureAlert(info?: string): Promise<void> {
     if (this.alertSent) return;
+    // this.isReady = false;
     if (!info) info = 'Connexion Failure Alert';
 
     try {
@@ -527,6 +571,7 @@ export class WhatsappService implements OnModuleInit {
       const message = `Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping reconnection attempts.`;
       this.logger.error(message);
       this.updateQrStatus(false, message);
+      // this.isReady = false;
       this.sendConnexionFailureAlert(message);
       this.disconnect();
       return;
@@ -612,7 +657,7 @@ export class WhatsappService implements OnModuleInit {
    */
   private async performHealthCheck(): Promise<void> {
     console.log('performHealthCheck');
-    if (!this.isReady) {
+    if (!this.isReady && this.reconnectAttempts < this.maxReconnectAttempts) {
       const message =
         'Health check: Client not ready - attempting reconnection';
       this.logger.warn(message);
@@ -621,7 +666,6 @@ export class WhatsappService implements OnModuleInit {
       if (this.needToScan === false) this.handleDisconnect();
     } else if (this.isReady) {
       const message = 'Health check: Whatsapp Client is healthy';
-      this.isReady = true;
       this.logger.debug(message);
       this.updateQrStatus(true, message);
       console.log('needToScan: ', this.needToScan);
@@ -716,7 +760,7 @@ export class WhatsappService implements OnModuleInit {
       this.logger.warn('No QR code found in database');
       return null;
     }
-    return qrDoc;
+    return qrDoc.qr;
   }
 
   /**

@@ -11,6 +11,12 @@ export class WhatsappQr extends Document {
 
   @Prop()
   message: string;
+
+  @Prop()
+  code: string;
+
+  @Prop()
+  contact: string;
 }
 
 export const WhatsappQrSchema = SchemaFactory.createForClass(WhatsappQr);

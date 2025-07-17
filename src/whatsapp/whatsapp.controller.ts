@@ -1,15 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   Get,
+  NotFoundException,
+  Post,
+  Put,
+  Req,
   UseGuards,
   UsePipes,
-  NotFoundException,
-  Req,
   ValidationPipe,
 } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
@@ -30,25 +34,41 @@ export class WhatsappController {
   }
 
   @Get('get-qr-code')
-  @UseGuards(AuthGuard('jwt'))
-  @UsePipes(ValidationPipe)
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
   async getQr(@Req() req): Promise<any> {
-    console.log('get QR-Code');
     if (!req.user.isAdmin) {
       throw new NotFoundException('Unautorised');
     }
-    return this.whatsappService.getCurrentQr();
+    const qr = await this.whatsappService.getCurrentQr();
+    if (!qr) {
+      throw new NotFoundException('QR code not found');
+    }
+    return qr;
+  }
+
+  @Get('get-client-status')
+  @UseGuards(AuthGuard('jwt')) // Protect the route with authentication
+  @UsePipes(ValidationPipe) // Validate the incoming data
+  async getWhatsappClientStatus(@Req() req): Promise<any> {
+    if (!req.user.isAdmin) {
+      throw new NotFoundException('Unautorised');
+    }
+    return this.whatsappService.getWhatsappClientStatus();
   }
 
   @Get('refresh-qr-code')
   @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
   async refreshQr(@Req() req): Promise<any> {
-    console.log('refresh QR-Code');
     if (!req.user.isAdmin) {
       throw new NotFoundException('Unautorised');
     }
-    return this.whatsappService.refreshQr();
+    const qr = await this.whatsappService.refreshQr();
+    if (!qr) {
+      throw new NotFoundException('QR code not found');
+    }
+    return { qr };
   }
 
   @Post('send')
@@ -67,18 +87,33 @@ export class WhatsappController {
   }
 
   @Post('welcome-message0')
+  // @UseGuards(AuthGuard('jwt'))
+  // @UsePipes(ValidationPipe)
   async welcomeMessage0(@Body() body: { userId: string }) {
     return this.whatsappService.welcomeMessage(body.userId, false);
   }
 
-  @Post('disconnect')
+  @Put('update-contact')
   @UseGuards(AuthGuard('jwt'))
   @UsePipes(ValidationPipe)
-  async disconnect(@Req() req): Promise<any> {
-    console.log('disconnect');
+  async updateSystemContact(
+    @Req() req,
+    @Body() body: { code: string; contact: string },
+  ): Promise<any> {
     if (!req.user.isAdmin) {
       throw new NotFoundException('Unautorised');
     }
+    return this.whatsappService.updateSystemContact(body);
+  }
+
+  @Post('disconnect')
+  // @UseGuards(AuthGuard('jwt'))
+  // @UsePipes(ValidationPipe)
+  async disconnect(@Req() req): Promise<any> {
+    console.log('disconnect');
+    // if (!req.user.isAdmin) {
+    //   throw new NotFoundException('Unautorised');
+    // }
     return this.whatsappService.disconnect();
   }
 }
