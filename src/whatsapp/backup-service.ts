@@ -40,20 +40,6 @@ interface QueuedMessage {
 }
 
 /**
- * Interface for mass failure alert configuration
- */
-interface MassFailureAlert {
-  /** Threshold percentage for mass failure detection */
-  failureThreshold: number;
-  /** Minimum number of messages to trigger alert */
-  minMessagesThreshold: number;
-  /** Time window for failure analysis (in minutes) */
-  timeWindowMinutes: number;
-  /** Email address for alerts */
-  alertEmail: string;
-}
-
-/**
  * WhatsApp service providing message sending capabilities with queue management,
  * automatic reconnection, health monitoring, and mass failure alerts.
  *
@@ -66,7 +52,7 @@ interface MassFailureAlert {
  *
  */
 @Injectable()
-export class WhatsappService implements OnModuleInit, OnModuleDestroy {
+export class WhatsappService implements OnModuleInit {
   private readonly logger = new Logger(WhatsappService.name);
 
   /** WhatsApp Web client instance */
@@ -77,15 +63,8 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private needToScan = true;
 
-  // Message queue management
-  /** Array of messages waiting to be sent (FIFO queue) */
-  private messageQueue: QueuedMessage[] = [];
-
-  /** Flag to prevent concurrent queue processing */
-  private isProcessingQueue = false;
-
-  /** Maximum number of retry attempts for failed messages */
-  private maxRetries = 3;
+  private currentFailNumber = 0;
+  private maxFailNumber = 5;
 
   // Reconnection management with exponential backoff
   /** Current number of reconnection attempts */
@@ -103,49 +82,27 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   /** Timeout reference for scheduled reconnection attempts */
   private reconnectTimeout: NodeJS.Timeout;
 
-  /** Flag to track if we're currently attempting reconnection */
-  private isReconnecting = false;
-
-  /** Flag to track if we had a successful connection recently */
-  private hadSuccessfulConnection = false;
-
-  /** Timestamp of last successful connection */
-  private lastSuccessfulConnection: Date | null = null;
-
   /** Minimum time to consider a connection stable (in milliseconds) */
   private readonly stableConnectionTime = 30000; // 30 seconds
-
-  /** Timeout to reset reconnection attempts after stable connection */
-  private stableConnectionTimeout: NodeJS.Timeout;
 
   // Health monitoring
   /** Interval reference for periodic health checks */
   private healthCheckInterval: NodeJS.Timeout;
 
   /** Delay between health checks (in milliseconds) */
-  private readonly healthCheckDelay = 60000; // 60 seconds
+  private readonly healthCheckDelay = 60 * 1000; // 60 seconds
 
-  // Mass failure monitoring
-  /** Configuration for mass failure alerts */
-  private readonly massFailureConfig: MassFailureAlert = {
-    failureThreshold: 50, // 50% failure rate triggers alert
-    minMessagesThreshold: 10, // Minimum 10 messages to consider for alert
-    timeWindowMinutes: 15, // 15 minutes window for analysis
-    alertEmail: 'contact@yaba-in.com;f.sanou@yaba-in.com;h.menkam@yaba-in.com',
-  };
+  private ResultsLimite = 1000;
 
-  /** Array to store recent message processing results for failure analysis */
-  private recentProcessingResults: Array<{
-    timestamp: Date;
-    success: boolean;
-    messageId: string;
-  }> = [];
+  count: number = 0;
 
   /** Flag to prevent multiple alerts for the same failure period */
   private alertSent = false;
 
   /** Frontend URL for messages */
   private frontUrl: any = '';
+
+  private alertEmail: string = 'support@yabi.cm';
 
   /**
    * Creates a new WhatsApp service instance
@@ -160,6 +117,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     private configService: ConfigService,
     private emailService: EmailService,
   ) {
+    this.count = 0;
     this.reconnectAttempts = 0;
     this.frontUrl = this.configService.get<string>('FRONT_URL')
       ? this.configService.get<string>('FRONT_URL')
@@ -171,305 +129,180 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * Starts the WhatsApp client initialization and health monitoring in the background.
    */
   onModuleInit() {
+    console.log('Whatsapp module initiated');
     // Start WhatsApp initialization in the background, without waiting
     this.initWhatsapp().catch((err) => {
-      this.logger.error(
-        'Error during WhatsApp init (non-blocking) : ' + err.message,
-      );
+      const message =
+        'Error during WhatsApp init (non-blocking) : ' + err.message;
+      this.logger.error(message);
+      this.sendConnexionFailureAlert(message);
     });
-
-    // Start health monitoring
-    this.startHealthCheck();
   }
 
   /**
    * Cleans up resources when the module is destroyed.
    * Stops health monitoring, clears timeouts, and destroys the WhatsApp client.
    */
-  onModuleDestroy() {
-    // Clean up resources
-    this.stopHealthCheck();
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-    if (this.client) {
-      this.client.destroy();
-    }
-  }
+  // onModuleDestroy() {
+  //   this.stopHealthCheck();
+  //   if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+  //   if (this.client) this.disconnect();
+  // }
 
   /**
    * Initializes the WhatsApp Web client with session persistence and event handlers.
    * Sets up QR code handling, connection monitoring, and automatic reconnection.
    *
-   *
    */
-  async initWhatsapp() {
-    this.client = new Client({
-      authStrategy: new LocalAuth({ dataPath: './assets/sessions/whatsapp' }),
-      puppeteer: {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
-          '--disable-default-apps',
-          '--disable-extensions',
-          '--disable-plugins',
-          '--disable-sync',
-          '--disable-translate',
-          '--hide-scrollbars',
-          '--mute-audio',
-          '--no-default-browser-check',
-          '--safebrowsing-disable-auto-update',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--memory-pressure-off',
-          '--max_old_space_size=4096',
-        ],
-      },
-    });
-
-    // Handle QR code generation for authentication
-    this.client.on('qr', async (qr) => {
-      this.isReady = false;
-      this.needToScan = true;
-      this.logger.warn(
-        'Received QR code for WhatsApp Web. Scan it with your phone. needToScan:',
-        this.needToScan,
-      );
-      this.logger.warn(qr);
-      qrcode.generate(qr, { small: true });
-      try {
-        await this.qrModel.findOneAndUpdate(
-          {},
-          { qr },
-          { upsert: true, new: true },
-        );
-      } catch (err) {
-        this.logger.error('QR backup error in database : ' + err.message);
-      }
-    });
-
-    // Handle successful connection
-    this.client.on('ready', () => {
-      this.isReady = true;
-      this.reconnectAttempts = 0; // Reset reconnection attempts
-      this.logger.log('WhatsApp client ready !');
-      this.updateQrStatus(true, 'Health check: Whatsapp Client is healthy');
-
-      // Process queued messages when client becomes ready
-      this.processQueue();
-    });
-
-    // Handle authentication failures
-    this.client.on('auth_failure', (msg) => {
-      this.isReady = false;
-      this.logger.error('WhatsApp authentication failure : ' + msg);
-      // this.handleDisconnect();
-    });
-
-    // Handle disconnections
-    this.client.on('disconnected', (reason) => {
-      this.logger.warn('WhatsApp client disconnected : ' + reason);
-      // this.handleDisconnect();
-    });
-
+  async initWhatsapp(): Promise<any> {
+    console.log('initWhatsapp');
     try {
+      this.client = new Client({
+        authStrategy: new LocalAuth({ dataPath: './assets/sessions/whatsapp' }),
+        puppeteer: {
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+          ],
+        },
+      });
+
+      // ATTACHE LES HANDLERS AVANT D'INITIALISER
+      this.setupEventHandlers();
       await this.client.initialize();
-      return this.getCurrentQr();
+      return true;
     } catch (err) {
-      // this.updateQrStatus(
-      //   false,
-      //   'Error initializing WhatsApp client : ' + err.message,
-      // );
-      this.logger.error('Error initializing WhatsApp client : ' + err.message);
-      // this.handleDisconnect();
-      throw new Error('Error initializing WhatsApp client : ' + err.message);
+      const message = `Error initializing WhatsApp client : ${err.message}`;
+      this.updateQrStatus(false, message);
+      this.logger.error(message);
+      this.handleDisconnect();
+      setTimeout(() => this.initWhatsapp(), 30 * 1000);
+      return message;
     }
   }
 
   /**
-   * Adds a message to the queue for asynchronous sending.
+   * send messages.
    * Returns immediately with a promise that resolves when the message is queued.
-   * The message will be sent when the WhatsApp client is ready.
-   *
-   * @param to - Recipient phone number in international format (e.g., '237612345678')
-   * @param message - Text message to send
-   * @param code - Optional country code to prefix the phone number
-   * @returns Promise resolving to queue status information
-   *
-   * @example
-   * ```typescript
-   * const result = await whatsappService.sendMessage('237612345678', 'Hello World!');
-   * console.log(result);
-   * // Output: { success: true, messageId: 'msg_123...', queued: true, estimatedDelivery: 'immediate' }
-   * ```
+   * Le message sera envoyé immédiatement si le client est prêt.
    */
   async sendMessage(to: string, message: string, code?: string): Promise<any> {
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Handle country code prefix
+    console.log('sendMessage');
+    console.log('isReady: ', this.isReady);
+    await this.checkForMassFailure();
     let formattedPhoneNumber = to;
-    if (code && !to.startsWith(code)) {
-      formattedPhoneNumber = code + to;
+    if (code && !to.startsWith(code)) formattedPhoneNumber = code + to;
+    let success = false;
+    let errorMsg = '';
+    try {
+      if (!this.isReady) {
+        this.currentFailNumber++;
+        console.log('fail number00: ', this.currentFailNumber);
+        return;
+      }
+      this.logger.log(`sending (ID: ${formattedPhoneNumber})`);
+      const chatId = formattedPhoneNumber.replace(/\D/g, '') + '@c.us';
+      await this.client.sendMessage(chatId, message);
+      success = true;
+      this.logger.log(`Message sent (ID: ${formattedPhoneNumber})`);
+    } catch (error) {
+      errorMsg = error.message;
+      this.logger.error(
+        `Message failed (Number: ${formattedPhoneNumber}): ${errorMsg}`,
+      );
+      console.log('fail number: ', this.currentFailNumber);
+      this.currentFailNumber++;
     }
-
-    const queuedMessage: QueuedMessage = {
-      id: messageId,
-      to: formattedPhoneNumber,
-      message,
-      timestamp: new Date(),
-      retries: 0,
-    };
-
-    // Add to message queue
-    this.messageQueue.push(queuedMessage);
-    this.logger.log(
-      `Message ${messageId} added to queue. Queue length: ${this.messageQueue.length}`,
-    );
-
-    // Process immediately if client is ready and not currently processing
-    if (this.isReady && !this.isProcessingQueue) {
-      this.processQueue();
-    }
-
-    // Return queue status information
-    const queueStatus = this.getQueueStatus();
+    // Retourne le statut d'envoi
     return {
-      success: true,
-      messageId,
-      queued: true,
+      success,
+      error: errorMsg || undefined,
       estimatedDelivery: this.isReady ? 'immediate' : 'when_ready',
-      queueStatus,
     };
   }
 
-  /**
-   * Processes the message queue in FIFO order.
-   * Sends messages one by one and handles retries for failed messages.
-   * Includes comprehensive error handling, performance metrics, and mass failure detection.
-   *
-   * @private
-   */
-  private async processQueue(): Promise<void> {
-    if (
-      this.isProcessingQueue ||
-      !this.isReady ||
-      this.messageQueue.length === 0
-    ) {
+  private async setupEventHandlers() {
+    console.log('setupEventHandlers');
+
+    if (!this.client) {
+      console.error('setupEventHandlers: this.client is undefined!');
+      console.log('setupEventHandlers called');
       return;
     }
+    this.startHealthCheck();
 
-    this.isProcessingQueue = true;
-    const startTime = Date.now();
-    const initialQueueLength = this.messageQueue.length;
+    this.client.on('qr', async (qr) => this.handleQrCode(qr));
 
-    this.logger.log(
-      `Processing queue with ${this.messageQueue.length} messages`,
-    );
+    this.client.on('ready', () => this.handleReady());
 
-    let successCount = 0;
-    let failureCount = 0;
-    let retryCount = 0;
+    this.client.on('auth_failure', (msg) => this.handleAuthFailure(msg));
 
-    while (this.messageQueue.length > 0 && this.isReady) {
-      const queuedMessage = this.messageQueue.shift();
-      if (!queuedMessage) continue;
+    this.client.on('disconnected', (reason) => this.handleDisconnected(reason));
+  }
 
-      try {
-        const chatId = queuedMessage.to.replace(/\D/g, '') + '@c.us';
-        await this.client.sendMessage(chatId, queuedMessage.message);
-
-        successCount++;
-        this.recordProcessingResult(queuedMessage.id, true);
-        this.logger.log(
-          `Message ${queuedMessage.id} sent successfully to ${queuedMessage.to}`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Error sending message ${queuedMessage.id}: ${error.message}`,
-        );
-
-        // Retry if max attempts not reached
-        if (queuedMessage.retries < this.maxRetries) {
-          queuedMessage.retries++;
-          retryCount++;
-
-          // Calculate exponential backoff delay for retries
-          const retryDelay = Math.min(
-            2000 * Math.pow(2, queuedMessage.retries - 1),
-            10000,
-          );
-
-          this.messageQueue.unshift(queuedMessage); // Put back at front of queue
-          this.logger.log(
-            `Message ${queuedMessage.id} will be retried in ${retryDelay}ms (attempt ${queuedMessage.retries}/${this.maxRetries})`,
-          );
-
-          // Wait before retrying with exponential backoff
-          await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        } else {
-          failureCount++;
-          this.recordProcessingResult(queuedMessage.id, false);
-          this.logger.error(
-            `Message ${queuedMessage.id} failed after ${this.maxRetries} attempts`,
-          );
-        }
-      }
+  private async handleQrCode(qr) {
+    console.log('handleQrCode');
+    const message =
+      'Received QR code for WhatsApp Web. Scan it with your phone.';
+    this.logger.warn(message);
+    qrcode.generate(qr, { small: true });
+    if (this.count === 0) {
+      this.sendQrNeedToScanAlert();
+      this.count++;
     }
 
-    this.isProcessingQueue = false;
-    const processingTime = Date.now() - startTime;
-
-    this.logger.log(
-      `Queue processing completed in ${processingTime}ms. ` +
-        `Processed: ${initialQueueLength}, Success: ${successCount}, ` +
-        `Failed: ${failureCount}, Retries: ${retryCount}, ` +
-        `Remaining: ${this.messageQueue.length}`,
-    );
-
-    // Check for mass failure and send alert if needed
-    this.checkForMassFailure();
-
-    // If there are still messages in queue and client is ready, continue processing
-    if (this.messageQueue.length > 0 && this.isReady) {
-      this.logger.log(
-        `Continuing to process remaining ${this.messageQueue.length} messages`,
+    try {
+      // if (this.isReady) return;
+      this.needToScan = true;
+      await this.qrModel.findOneAndUpdate(
+        {},
+        { qr, status: false, message: 'Awaiting QR scan' },
+        { upsert: true, new: true },
       );
-      setTimeout(() => this.processQueue(), 1000); // Small delay before next batch
+    } catch (err) {
+      const errMessage = `QR save failed: ${err.message}`;
+      this.logger.error(errMessage);
+      this.sendQrCodeFailureAlert(errMessage);
     }
   }
 
-  /**
-   * Records a message processing result for failure analysis.
-   *
-   * @param messageId - The ID of the processed message
-   * @param success - Whether the message was sent successfully
-   * @private
-   */
-  private recordProcessingResult(messageId: string, success: boolean): void {
-    this.recentProcessingResults.push({
-      timestamp: new Date(),
-      success,
-      messageId,
-    });
+  private async handleReady() {
+    console.log('handleReady');
+    this.isReady = true;
+    this.reconnectAttempts = 0;
+    this.needToScan = false;
+    this.logger.log('Client ready');
+    this.updateQrStatus(true, 'Client ready');
+    const qrDoc = await this.qrModel.findOne({});
+    this.sendMessage(
+      qrDoc?.phone ? qrDoc.phone : '91224472',
+      ' ✅ ✅ *WhatsApp Service is ready* ',
+      qrDoc?.code ? qrDoc.code : '237',
+    );
+    this.sendWhatsappConnectedNotification();
+    // Start health monitoring
+    // this.startHealthCheck();
+  }
 
-    // Clean up old results (keep only results from the last time window)
-    const cutoffTime = new Date(
-      Date.now() - this.massFailureConfig.timeWindowMinutes * 60 * 1000,
-    );
-    this.recentProcessingResults = this.recentProcessingResults.filter(
-      (result) => result.timestamp > cutoffTime,
-    );
+  private handleAuthFailure(msg) {
+    console.log('handlAuthFailure');
+    this.needToScan = false;
+    const message = `Auth failure: ${msg}`;
+    this.logger.error(message);
+    this.updateQrStatus(false, message);
+    this.handleDisconnect();
+  }
+
+  private handleDisconnected(reason) {
+    console.log('handleDisconnected');
+    this.needToScan = false;
+    const message = `Disconnected: ${reason}`;
+    if (reason === 'LOGOUT') return this.disconnect();
+    this.logger.warn(message);
+    this.updateQrStatus(false, message);
+    this.handleDisconnect();
   }
 
   /**
@@ -477,137 +310,207 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    *
    * @private
    */
-  private async checkForMassFailure(): Promise<void> {
-    if (
-      this.alertSent ||
-      this.recentProcessingResults.length <
-        this.massFailureConfig.minMessagesThreshold
-    ) {
+  private async checkForMassFailure() {
+    console.log('checkForMassFailure');
+
+    if (this.currentFailNumber <= this.maxFailNumber) {
       return;
     }
 
-    const failureCount = this.recentProcessingResults.filter(
-      (result) => !result.success,
-    ).length;
-    const totalMessages = this.recentProcessingResults.length;
-    const failureRate = (failureCount / totalMessages) * 100;
+    const errMessage =
+      `MASS FAILURE DETECTED ` +
+      `(${this.currentFailNumber}/${this.maxFailNumber} messages failed)`;
+    this.logger.error(errMessage);
 
-    if (failureRate >= this.massFailureConfig.failureThreshold) {
-      this.logger.error(
-        `MASS FAILURE DETECTED: ${failureRate.toFixed(1)}% failure rate ` +
-          `(${failureCount}/${totalMessages} messages failed in last ${this.massFailureConfig.timeWindowMinutes} minutes)`,
-      );
+    // this.updateQrStatus(false, errMessage);
+    this.sendMassFailureAlert(errMessage);
+    this.alertSent = true;
+    this.isReady = false;
+    this.currentFailNumber = 0; // reset ici
 
-      await this.sendMassFailureAlert(failureRate, failureCount, totalMessages);
-      this.alertSent = true;
-
-      // Reset alert flag after some time to allow future alerts
-      setTimeout(
-        () => {
-          this.alertSent = false;
-        },
-        30 * 60 * 1000,
-      ); // 30 minutes
-    }
+    setTimeout(
+      () => {
+        this.alertSent = false;
+        this.currentFailNumber = 0; // reset aussi ici pour être sûr
+      },
+      15 * 60 * 1000,
+    );
   }
 
   /**
    * Sends a mass failure alert email to the configured address.
    *
    * @param failureRate - The percentage of failed messages
-   * @param failureCount - The number of failed messages
-   * @param totalMessages - The total number of messages processed
+   * @param this.currentFailNumber - The number of failed messages
+   * @param this.maxFailNumber - The total number of messages processed
    * @private
    */
-  private async sendMassFailureAlert(
-    failureRate: number,
-    failureCount: number,
-    totalMessages: number,
-  ): Promise<void> {
+  private async sendMassFailureAlert(errMessage?): Promise<void> {
     try {
-      this.updateQrStatus(
-        false,
-        `Mass failure alert: Alert details: ${failureRate.toFixed(1)}% failure rate, ${failureCount}/${totalMessages} messages`,
-      );
-      const subject = `🚨 WhatsApp Mass Failure Alert - Yabi Events`;
+      const subject =
+        `🚨 🚨 WhatsApp ${errMessage} Alert - Yabi Events` +
+        new Date().toISOString();
       const message = `
-          <h2>WhatsApp Mass Failure Alert</h2>
-          <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-          <p><strong>Failure Rate:</strong> ${failureRate.toFixed(1)}%</p>
-          <p><strong>Failed Messages:</strong> ${failureCount}/${totalMessages}</p>
-          <p><strong>Time Window:</strong> Last ${this.massFailureConfig.timeWindowMinutes} minutes</p>
-          <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
-          <p><strong>Queue Length:</strong> ${this.messageQueue.length}</p>
-          <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
-  
-          <h3>Recommended Actions:</h3>
-          <ul>
-            <li>Check WhatsApp Web session status</li>
-            <li>Verify network connectivity</li>
-            <li>Review recent error logs</li>
-            <li>Consider manual reconnection if needed</li>
-          </ul>
-  
-          <p><em>This is an automated alert from the Yabi Events WhatsApp service.</em></p>
-        `;
+        <h2>WhatsApp ${errMessage} Alert</h2>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Failed Messages:</strong> ${this.currentFailNumber}/${this.maxFailNumber}</p>
+        <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
+        <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
 
+        <h3>Recommended Actions:</h3>
+        <ul>
+          <li>Check WhatsApp Web session status</li>
+          <li>Verify network connectivity</li>
+          <li>Review recent error logs</li>
+          <li>Consider manual reconnection if needed</li>
+        </ul>
+
+        <p><em>This is an automated alert from the Yabi Events WhatsApp service.</em></p>
+      `;
+
+      this.logger.warn(
+        `🚨 🚨 🚨  Mass failure alert would be sent to ${this.alertEmail}`,
+      );
+      this.logger.warn(`Alert details: ${errMessage}`);
       // Send alert by mail
-      await this.emailService.sendEmail(
-        this.massFailureConfig.alertEmail,
-        subject,
-        message,
-      );
-
-      this.logger.warn(
-        `Mass failure alert would be sent to ${this.massFailureConfig.alertEmail}`,
-      );
-      this.logger.warn(
-        `Alert details: ${failureRate.toFixed(1)}% failure rate, ${failureCount}/${totalMessages} messages`,
-      );
-      this.disconnect();
+      await this.emailService.sendEmail(this.alertEmail, subject, message);
+      // this.disconnect();
     } catch (error) {
       this.logger.error(`Failed to send mass failure alert: ${error.message}`);
     }
   }
 
-  private async sendConnexionFailureAlert(): Promise<void> {
+  private async sendConnexionFailureAlert(info?: string): Promise<void> {
+    if (this.alertSent) return;
+    if (!info) info = 'Connexion Failure Alert';
+
     try {
-      const subject = `🚨🚨🚨 WhatsApp Connexion Failure Alert - Yabi Events`;
+      const subject =
+        `🚨🚨🚨 WhatsApp Connexion Failure Alert - Yabi Events ` +
+        new Date().toISOString();
       const message = `
-          <h2>WhatsApp messaging service: Connexion Failure Alert</h2>
-          <p>The system is unable to send WhatsApp messages because the attempt to connect to the Yabi Events WhatsApp account failed.</p>
-          <p>Le système est dans l'incapacité d'envoyer les messages WhatsApp car la tentative de connexion au compte WhatsApp de Yabi Events a échoué</p>
-          <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-          <p><strong>Failed Messages:</strong> WhatsApp Connexion Failure.</p>
-          <p><strong>Time Window:</strong> Last ${this.massFailureConfig.timeWindowMinutes} minutes</p>
-          <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
-          <p><strong>Queue Length:</strong> ${this.messageQueue.length}</p>
-          <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
-          <p><strong>Action required:</strong> You need to open the admin dashboard and scan the Whatsapp QR code with Yabi Events WhatsApp account.</p>
-  
-          <h3>Recommended Actions:</h3>
-          <ul>
-            <li>Check WhatsApp Web session status</li>
-            <li>Verify network connectivity</li>
-            <li>Review recent error logs</li>
-            <li>Consider manual reconnection if needed</li>
-          </ul>
-  
-          <p><em>This is an automated alert from the Yabi Events WhatsApp service.</em></p>
-        `;
+        <h2>WhatsApp messaging service: ${info}</h2>
+        <p>The system is unable to send WhatsApp messages because the attempt to connect to the Yabi Events WhatsApp account failed.</p>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Failed Messages:</strong> WhatsApp Connexion Failure.</p>
+        <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
+        <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
+        <p><strong>Action required:</strong> You need to open the admin dashboard and scan the Whatsapp QR code with Yabi Events WhatsApp account.</p>
+
+        <h3>Recommended Actions:</h3>
+        <ul>
+          <li>Check WhatsApp Web session status</li>
+          <li>Verify network connectivity</li>
+          <li>Review recent error logs</li>
+          <li>Consider manual reconnection if needed</li>
+        </ul>
+
+        <p><em>This is an automated alert from the Yabi Events WhatsApp service.</em></p>
+      `;
 
       // Send alert by mail
-      await this.emailService.sendEmail(
-        this.massFailureConfig.alertEmail,
-        subject,
-        message,
-      );
+      await this.emailService.sendEmail(this.alertEmail, subject, message);
 
-      this.logger.warn(
-        `Whatsapp Connexion failure alert would be sent to ${this.massFailureConfig.alertEmail}`,
-      );
+      this.logger.warn(`${info} would be sent to ${this.alertEmail}`);
     } catch (error) {
       this.logger.error(`Failed to send mass failure alert: ${error.message}`);
+    }
+  }
+
+  private async sendQrCodeFailureAlert(info?: string): Promise<void> {
+    if (this.alertSent) return;
+    if (!info) info = 'Error saving WhatsApp Qr-Code alert';
+
+    try {
+      const subject =
+        `🚨 Error saving WhatsApp Qr-Code alert - Yabi Events ` +
+        new Date().toISOString();
+      const message = `
+        <h2>WhatsApp messaging service: ${info}</h2>
+        <p>The system is unable to save WhatsApp AR-code to update database for scan.</p>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Failed Messages:</strong> Error saving WhatsApp Qr-Code alert.</p>
+        <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
+        <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
+        <p><strong>Action required:</strong> Restart the backend server to night.</p>
+
+        <h3>Recommended Actions:</h3>
+        <ul>
+          <li>Check WhatsApp Web session status</li>
+          <li>Verify network connectivity</li>
+          <li>Review recent error logs</li>
+          <li>Consider manual reconnection if needed</li>
+        </ul>
+
+        <p><em>This is an automated alert from the Yabi Events WhatsApp service.</em></p>
+      `;
+
+      // Send alert by mail
+      await this.emailService.sendEmail(this.alertEmail, subject, message);
+
+      this.logger.warn(`${info} would be sent to ${this.alertEmail}`);
+    } catch (error) {
+      this.logger.error(`Failed to send mass failure alert: ${error.message}`);
+    }
+  }
+
+  private async sendQrNeedToScanAlert(info?: string): Promise<void> {
+    if (this.alertSent) return;
+    if (!info) info = 'WhatsApp Qr-Code Need to scan alert';
+
+    try {
+      const subject =
+        `🚨 WhatsApp Qr-Code Need to scan alert - Yabi Events ` +
+        new Date().toISOString();
+      const message = `
+        <h2>WhatsApp messaging service: ${info}</h2>
+        <p>The system is unable to save WhatsApp AR-code to update database for scan.</p>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Failed Messages:</strong> WhatsApp Qr-Code Need to scan alert.</p>
+        <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
+        <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
+
+        <p><em>This is an automated alert from the Yabi Events WhatsApp service.</em></p>
+      `;
+
+      // Send alert by mail
+      await this.emailService.sendEmail(this.alertEmail, subject, message);
+
+      this.logger.warn(`${info} would be sent to ${this.alertEmail}`);
+    } catch (error) {
+      this.logger.error(`Failed to send mass failure alert: ${error.message}`);
+    }
+  }
+
+  private async sendWhatsappConnectedNotification(
+    info?: string,
+  ): Promise<void> {
+    if (this.alertSent) return;
+    if (!info) info = '✅ ✅ WhatsApp Service is ready';
+
+    try {
+      const subject =
+        `✅ ✅ WhatsApp Service is ready - Yabi Events ` +
+        new Date().toISOString();
+      const message = `
+        <h2>WhatsApp messaging service: ${info}</h2>
+        <p>The system is ready to send messages using Whatsapp service.</p>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Client Status:</strong> ${this.isReady ? 'Ready' : 'Not Ready'}</p>
+        <p><strong>Reconnection Attempts:</strong> ${this.reconnectAttempts}/${this.maxReconnectAttempts}</p>
+
+        <p><em>This is an automated notification from the Yabi Events WhatsApp service.</em></p>
+      `;
+
+      await this.emailService.sendEmail(this.alertEmail, subject, message);
+
+      this.logger.debug(
+        `${info} notification would be sent to ${this.alertEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send Whatsapp Connected Notification: ${error.message}`,
+      );
     }
   }
 
@@ -618,26 +521,15 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * @private
    */
   private async handleDisconnect(): Promise<void> {
-    console.log('=== handleDisconnect called ===');
-    console.log('Stack trace:', new Error().stack);
-    this.isReady = false;
+    console.log('handleDisconnect');
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
 
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-
-    console.log('reconnectAttempts: ', this.reconnectAttempts);
-    console.log('maxReconnectAttempts: ', this.maxReconnectAttempts);
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.logger.error(
-        `Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping reconnection attempts.`,
-      );
-      this.updateQrStatus(
-        false,
-        `Max reconnection attempts (${this.maxReconnectAttempts}) reached, Stopping reconnection attempts.`,
-      );
-      this.sendConnexionFailureAlert();
-      this.stopHealthCheck();
+      const message = `Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping reconnection attempts.`;
+      this.logger.error(message);
+      this.updateQrStatus(false, message);
+      this.sendConnexionFailureAlert(message);
+      this.disconnect();
       return;
     }
 
@@ -648,7 +540,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     );
 
     this.logger.warn(
-      `Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`,
+      `Reconnecting in ${delay}ms (Attempt ${this.reconnectAttempts})`,
     );
 
     this.reconnectTimeout = setTimeout(async () => {
@@ -657,33 +549,34 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       );
 
       try {
-        if (this.client) {
-          await this.client.destroy();
-        }
+        // if (this.client) await this.client.destroy();
         await this.initWhatsapp();
       } catch (error) {
-        this.updateQrStatus(
-          false,
-          `Reconnection attempt ${this.reconnectAttempts} failed: ${error.message}`,
-        );
-        this.logger.error(
-          `Reconnection attempt ${this.reconnectAttempts} failed: ${error.message}`,
-        );
-        this.handleDisconnect(); // Retry
+        const message = `Reconnection attempt ${this.reconnectAttempts} failed: ${error.message}`;
+        this.updateQrStatus(false, message);
+        this.logger.error(message);
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.handleDisconnect();
+        }
       }
     }, delay);
   }
 
-  async updateQrStatus(status, message) {
-    await this.qrModel.findOneAndUpdate(
-      {},
-      {
-        status,
-        message,
-      },
-      { upsert: true, new: true },
-    );
+  private async updateQrStatus(
+    status: boolean,
+    message: string,
+  ): Promise<void> {
+    try {
+      await this.qrModel.findOneAndUpdate(
+        {},
+        { status, message },
+        { upsert: true, new: true },
+      );
+    } catch (err) {
+      this.logger.error(`QR status update failed: ${err.message}`);
+    }
   }
+
   /**
    * Starts periodic health monitoring to detect silent failures.
    * Checks client status every 60 seconds and triggers reconnection if needed.
@@ -691,6 +584,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * @private
    */
   private startHealthCheck(): void {
+    console.log('startHealthCheack');
     this.healthCheckInterval = setInterval(() => {
       this.performHealthCheck();
     }, this.healthCheckDelay);
@@ -704,6 +598,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * @private
    */
   private stopHealthCheck(): void {
+    console.log('stopHealthCheck');
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
       this.logger.log('Health check stopped');
@@ -717,109 +612,39 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * @private
    */
   private async performHealthCheck(): Promise<void> {
-    if (!this.isReady && this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.logger.warn(
-        'Health check: Client not ready, attempting reconnection',
-      );
-      this.updateQrStatus(
-        false,
-        'Health check: Client not ready, attempting reconnection',
-      );
+    console.log('performHealthCheck');
+    if (!this.isReady) {
+      const message =
+        'Health check: Client not ready - attempting reconnection';
+      this.logger.warn(message);
+      this.updateQrStatus(false, message);
       console.log('needToScan: ', this.needToScan);
-      if (this.needToScan === false) {
-        this.handleDisconnect();
-      }
-    } else if (this.isReady) {
-      // this.logger.debug('Health check: Whatsapp Client is healthy');
-      this.updateQrStatus(true, 'Health check: Whatsapp Client is healthy');
+      if (this.needToScan === false) this.handleDisconnect();
+    } else if (this.isReady === true) {
+      this.logger.debug(this.isReady);
+      const message = 'Health check: Whatsapp Client is healthy';
+      this.isReady = true;
+      this.needToScan = false;
+      this.logger.debug(message);
+      this.updateQrStatus(true, message);
+      console.log('needToScan: ', this.needToScan);
     }
   }
 
-  /**
-   * Returns the current status of the message queue and client state.
-   * Useful for monitoring and debugging purposes.
-   *
-   * @returns Object containing queue status, processing state, and connection information
-   *
-   * @example
-   * ```typescript
-   * const status = whatsappService.getQueueStatus();
-   * console.log(status);
-   * // Output: { queueLength: 5, isProcessing: true, isReady: true, reconnectAttempts: 0, maxReconnectAttempts: 10 }
-   * ```
-   */
-  getQueueStatus(): any {
-    return {
-      queueLength: this.messageQueue.length,
-      isProcessing: this.isProcessingQueue,
-      isReady: this.isReady,
-      reconnectAttempts: this.reconnectAttempts,
-      maxReconnectAttempts: this.maxReconnectAttempts,
-    };
-  }
+  // getQueueStatus supprimé car la file d'attente n'existe plus
 
-  /**
-   * Clears all messages from the queue.
-   * Use with caution as this will permanently delete all pending messages.
-   *
-   * @returns Promise that resolves when the queue is cleared
-   */
-  async clearQueue(): Promise<void> {
-    this.messageQueue = [];
-    this.logger.log('Message queue cleared');
-  }
+  // clearQueue supprimé car la file d'attente n'existe plus
 
-  /**
-   * Sends a formatted message with title, subtitle, content, and optional link.
-   * Formats the message using WhatsApp's markdown syntax and emojis.
-   *
-   * @param to - Recipient phone number in international format
-   * @param messageData - Object containing message components
-   * @param messageData.title - Optional title (displayed in bold with 📢 emoji)
-   * @param messageData.subtitle - Optional subtitle (displayed in bold with 🎵 emoji)
-   * @param messageData.content - Optional main content text
-   * @param messageData.link - Optional link (displayed with 🔗 emoji)
-   * @returns Promise resolving to queue status information
-   *
-   * @example
-   * ```typescript
-   * await whatsappService.sendFormattedMessage('237612345678', {
-   *   title: 'Event Update',
-   *   subtitle: 'Concert Tonight',
-   *   content: 'Don\'t forget the concert tonight! Doors open at 8 PM.',
-   *   link: 'https://example.com/event/123'
-   * });
-   * ```
-   */
-  async sendFormattedMessage(
-    to: string,
-    messageData: {
-      title?: string;
-      subtitle?: string;
-      content?: string;
-      link?: string;
-    },
-  ): Promise<any> {
-    // Build formatted message
-    let formattedMessage = '';
-
-    if (messageData.title) {
-      formattedMessage += `📢 *${messageData.title}*\n\n`;
+  public async refreshQr() {
+    console.log('refreshQr');
+    if (this.isReady) {
+      this.logger.warn('WhatsApp client is ready');
+      return 'Whatsapp service working good !';
     }
-
-    if (messageData.subtitle) {
-      formattedMessage += `🎵 *${messageData.subtitle}*\n\n`;
-    }
-
-    if (messageData.content) {
-      formattedMessage += `${messageData.content}\n\n`;
-    }
-
-    if (messageData.link) {
-      formattedMessage += `🔗 *Event Link:*\n${messageData.link}`;
-    }
-
-    return this.sendMessage(to, formattedMessage);
+    await this.setupEventHandlers();
+    const qr = await this.getCurrentQr();
+    qrcode.generate(qr.qr, { small: true });
+    return qr;
   }
 
   /**
@@ -827,7 +652,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * Formats the message using WhatsApp's markdown syntax and emojis.
    *
    * @param data - Recipient phone number in international format
-   * @param isUser - True if data contain user data, false if data contain just user Id (string)
+   * @param isUser - True if data contain user data, false if data contain just userId (string)
    * @returns Promise resolving to queue status information
    *
    * @example
@@ -839,73 +664,36 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * });
    * ```
    */
-  async welcomeMessage(data: any, isUser: boolean) {
-    let user: any;
-    if (isUser) {
-      user = data;
-    } else {
-      user = await this.userModel.findById(data).populate('countryId');
-      if (!user) {
-        throw new NotFoundException('User not found');
-      } else {
-        user.password = '';
-        user.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
-      }
-    }
+  async welcomeMessage(data: any, isUser: boolean): Promise<any> {
+    const user = isUser ? data : await this.getUser(data);
 
     // Message construction
-    let formattedMessage = '';
-    if (user.language === 'fr') {
-      formattedMessage += `Hello *${user.firstName} !!*\n\n`;
-      formattedMessage += `Nous sommes ravis de vous accueillir sur *Yabi Events*\n`;
-      formattedMessage += `Votre solution tout-en-un pour la gestion d’événements.\n`;
-      formattedMessage += `Grâce à Yabi Events, vous pouvez facilement créer, organiser et gérer vos événements, tout en offrant une expérience fluide à vos participants.\n\n`;
-      formattedMessage += `🔗 _Rendez-vous sur_ : \n${this.frontUrl}`;
-      formattedMessage += `\n\n\n> Ceci est un message automatisé du service WhatsApp de Yabi Events.`;
-    } else {
-      formattedMessage += `Hello *${user.firstName} !!*\n\n`;
-      formattedMessage += `We are thrilled to welcome you to *Yabi Events*\n`;
-      formattedMessage += `Your all-in-one solution for event management.\n`;
-      formattedMessage += `With Yabi Events, you can easily create, organize and manage your events, while offering a seamless experience for your attendees.\n\n`;
-      formattedMessage += `🔗 _Visit us at:_ \n${this.frontUrl}`;
-      formattedMessage += `\n\n\n> This is an automated message from the Yabi Events WhatsApp service.`;
-    }
+    const formattedMessage =
+      user.language === 'fr'
+        ? this.buildFrenchWelcomeMessage(user)
+        : this.buildEnglishWelcomeMessage(user);
 
     return this.sendMessage(user.phone, formattedMessage, user.countryId.code);
   }
 
   async participateToEventMessage(userId, event) {
-    const user = await this.userModel.findById(userId).populate('countryId');
-    if (!user) {
-      throw new NotFoundException('User not found');
-    } else {
-      user.password = '';
-      user.resetPasswordToken = ''; // Remove the resetPasswordToken from the response for security
-    }
-    // Message construction
-    let formattedMessage = '';
-    if (user.language === 'fr') {
-      formattedMessage += `*Votre place est assurée !*\n\n`;
-      formattedMessage += `Hello ${user.firstName}\n`;
-      formattedMessage += `Nous avons réservé votre place pour *${event.event_title}*\n`;
-      formattedMessage += `* Début : ${event.event_start}\n`;
-      formattedMessage += `* Fin : ${event.event_end}\n`;
-      formattedMessage += `* Lieu : ${event.event_country}, ${event.event_city},\n`;
-      formattedMessage += `${event.event_location}\n\n`;
-      formattedMessage += `🔗 _A propos de l'event :_ ${event.event_url}`;
-      formattedMessage += `\n\n\n> Ceci est un message automatisé du service WhatsApp de Yabi Events.`;
-    } else {
-      formattedMessage += `*Your seat is reserved !*\n\n`;
-      formattedMessage += `Hello ${user.firstName}\n`;
-      formattedMessage += `We have reserved your seat for *${event.event_title}*\n`;
-      formattedMessage += `* Start : ${event.event_start}\n`;
-      formattedMessage += `* End : ${event.event_end}\n`;
-      formattedMessage += `* Location : ${event.event_country}, ${event.event_city},\n`;
-      formattedMessage += `${event.event_location}\n\n`;
-      formattedMessage += `🔗 _About event :_ ${event.event_url}`;
-      formattedMessage += `\n\n\n> This is an automated message from the Yabi Events WhatsApp service.`;
-    }
+    const user = await this.getUser(userId);
+    const formattedMessage =
+      user.language === 'fr'
+        ? this.buildFrenchEventMessage(user, event)
+        : this.buildEnglishEventMessage(user, event);
     return this.sendMessage(user.phone, formattedMessage, user.countryId.code);
+  }
+
+  private async getUser(userId: string): Promise<User> {
+    const user = await this.userModel.findById(userId).populate('countryId');
+    if (!user) throw new NotFoundException('User not found');
+
+    // Clean sensitive data
+    user.password = '';
+    user.resetPasswordToken = '';
+
+    return user;
   }
 
   /**
@@ -923,14 +711,15 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * }
    * ```
    */
-  async getCurrentQr(): Promise<string | null> {
-    try {
-      const qrDoc = await this.qrModel.findOne({});
-      return qrDoc?.qr || null;
-    } catch (err) {
-      this.logger.error('QR reading error in database : ' + err.message);
+  async getCurrentQr(): Promise<any> {
+    console.log('getCurrentQr');
+    console.log('isReady: ', this.isReady);
+    const qrDoc = await this.qrModel.findOne({});
+    if (!qrDoc || !qrDoc.qr) {
+      this.logger.warn('No QR code found in database');
       return null;
     }
+    return qrDoc;
   }
 
   /**
@@ -946,39 +735,101 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
    * // Output: { status: true, message: 'WhatsApp session disconnected and client destroyed.' }
    * ```
    */
-  async disconnect(): Promise<any> {
-    this.sendConnexionFailureAlert();
+  async disconnect(): Promise<{ status: boolean; message: string }> {
+    console.log('disconnect');
+    // this.sendConnexionFailureAlert();
     this.stopHealthCheck();
 
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
 
+    let message = '';
     if (this.client) {
       await this.client.destroy();
-      const message: string =
-        'WhatsApp session disconnected and client destroyed.';
-      this.isReady = false;
-      this.logger.warn(message);
-      console.log(
-        'health check stopped: WhatsApp session disconnected and client destroyed.',
-      );
-      this.updateQrStatus(
-        false,
-        'health check stopped: WhatsApp session disconnected and client destroyed.',
-      );
-      return {
-        status: true,
-        message,
-      };
+      message =
+        'health check stopped: WhatsApp session disconnected and client destroyed';
     } else {
-      const message: string = 'No current WhatsApp client to disconnect.';
-      this.logger.warn(message);
-      this.updateQrStatus(false, 'No current WhatsApp client to disconnect.');
-      return {
-        status: true,
-        message,
-      };
+      message = 'No current WhatsApp client to disconnect.';
     }
+    this.isReady = false;
+    this.needToScan = true;
+    this.logger.warn(message);
+    this.updateQrStatus(false, message);
+    return {
+      status: true,
+      message,
+    };
+  }
+
+  public async updateSystemContact(body): Promise<{ status: boolean }> {
+    const code = body.code;
+    const phone = body.phone;
+    try {
+      await this.qrModel.findOneAndUpdate(
+        {},
+        { code, phone },
+        { upsert: true, new: true },
+      );
+      return { status: true };
+    } catch (err) {
+      this.logger.error(`QR status update failed: ${err.message}`);
+      return { status: false };
+    }
+  }
+
+  private buildFrenchWelcomeMessage(user: User): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
+    return (
+      `Hello *${userName} !!*\n\n` +
+      `Nous sommes ravis de vous accueillir sur *Yabi Events*\n` +
+      `Votre solution intelligente tout-en-un pour la gestion d'événements.\n\n` +
+      `🔗 _Rendez-vous sur_ :\n${this.frontUrl}` +
+      `\n\n\n> Ceci est un message automatique du service WhatsApp de Yabi Events.`
+    );
+  }
+
+  private buildEnglishWelcomeMessage(user: User): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
+    return (
+      `Hello *${userName} !!*\n\n` +
+      `We are thrilled to welcome you to *Yabi Events*\n` +
+      `Your smart all-in-one solution for event management.\n\n` +
+      `🔗 _Visit us at:_\n${this.frontUrl}` +
+      `\n\n\n> This is an automatic message from the Yabi Events WhatsApp service.`
+    );
+  }
+
+  private buildFrenchEventMessage(user: User, event: any): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
+    return (
+      `*Votre place est assurée !*\n\n` +
+      `Hello ${userName}\n` +
+      `Nous avons réservé votre place pour *${event.event_title}*\n` +
+      `* Début : ${event.event_start}\n` +
+      `* Fin : ${event.event_end}\n` +
+      `* Lieu : ${event.event_country}, ${event.event_city},\n` +
+      `${event.event_location}\n\n` +
+      `🔗 _A propos de l'event :_ ${event.event_url}` +
+      `\n\n\n> Ceci est un message automatique du service WhatsApp de Yabi Events.`
+    );
+  }
+
+  private buildEnglishEventMessage(user: User, event: any): string {
+    const userName = user.name || `${user.firstName} ${user.lastName}`;
+    return (
+      `*Your seat is reserved !*\n\n` +
+      `Hello ${userName}\n` +
+      `We have reserved your seat for *${event.event_title}*\n` +
+      `* Start : ${event.event_start}\n` +
+      `* End : ${event.event_end}\n` +
+      `* Location : ${event.event_country}, ${event.event_city},\n` +
+      `${event.event_location}\n\n` +
+      `🔗 _About event :_ ${event.event_url}` +
+      `\n\n\n> This is an automatic message from the Yabi Events WhatsApp service.`
+    );
+  }
+
+  async getWhatsappClientStatus(): Promise<{ status: boolean }> {
+    const status = this.isReady;
+    return { status };
   }
 }

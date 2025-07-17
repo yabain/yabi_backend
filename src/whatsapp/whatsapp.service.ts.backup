@@ -223,12 +223,12 @@ export class WhatsappService implements OnModuleInit {
     };
   }
 
-  private setupEventHandlers(): void {
+  private async setupEventHandlers() {
     console.log('setupEventHandlers');
 
-    console.log('setupEventHandlers called');
     if (!this.client) {
       console.error('setupEventHandlers: this.client is undefined!');
+      console.log('setupEventHandlers called');
       return;
     }
     this.startHealthCheck();
@@ -254,7 +254,7 @@ export class WhatsappService implements OnModuleInit {
     }
 
     try {
-      if (this.isReady) return;
+      // if (this.isReady) return;
       this.needToScan = true;
       await this.qrModel.findOneAndUpdate(
         {},
@@ -277,7 +277,7 @@ export class WhatsappService implements OnModuleInit {
     this.updateQrStatus(true, 'Client ready');
     const qrDoc = await this.qrModel.findOne({});
     this.sendMessage(
-      qrDoc?.contact ? qrDoc.contact : '91224472',
+      qrDoc?.phone ? qrDoc.phone : '91224472',
       ' ✅ ✅ *WhatsApp Service is ready* ',
       qrDoc?.code ? qrDoc.code : '237',
     );
@@ -325,6 +325,7 @@ export class WhatsappService implements OnModuleInit {
     // this.updateQrStatus(false, errMessage);
     this.sendMassFailureAlert(errMessage);
     this.alertSent = true;
+    this.isReady = false;
     this.currentFailNumber = 0; // reset ici
 
     setTimeout(
@@ -619,9 +620,11 @@ export class WhatsappService implements OnModuleInit {
       this.updateQrStatus(false, message);
       console.log('needToScan: ', this.needToScan);
       if (this.needToScan === false) this.handleDisconnect();
-    } else if (this.isReady) {
+    } else if (this.isReady === true) {
+      this.logger.debug(this.isReady);
       const message = 'Health check: Whatsapp Client is healthy';
       this.isReady = true;
+      this.needToScan = false;
       this.logger.debug(message);
       this.updateQrStatus(true, message);
       console.log('needToScan: ', this.needToScan);
@@ -638,9 +641,9 @@ export class WhatsappService implements OnModuleInit {
       this.logger.warn('WhatsApp client is ready');
       return 'Whatsapp service working good !';
     }
-    this.setupEventHandlers();
+    await this.setupEventHandlers();
     const qr = await this.getCurrentQr();
-    qrcode.generate(qr, { small: true });
+    qrcode.generate(qr.qr, { small: true });
     return qr;
   }
 
@@ -716,7 +719,7 @@ export class WhatsappService implements OnModuleInit {
       this.logger.warn('No QR code found in database');
       return null;
     }
-    return qrDoc.qr;
+    return qrDoc;
   }
 
   /**

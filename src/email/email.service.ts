@@ -11,6 +11,9 @@ import * as fs from 'fs';
 import * as handlebars from 'handlebars';
 import { DateService } from './date.service';
 import { createEvent } from 'ics';
+// import { Mail } from './mail.schema';
+// import { Model } from 'mongoose';
+// import { InjectModel } from '@nestjs/mongoose';
 
 const OAuth2 = google.auth.OAuth2;
 @Injectable()
@@ -25,6 +28,8 @@ export class EmailService {
   );
 
   constructor(
+    // @InjectModel(Mail.name)
+    // private readonly mailModel: Model<Mail>,
     private readonly configService: ConfigService,
     private dateService: DateService,
   ) {
@@ -248,6 +253,31 @@ export class EmailService {
       });
     });
   }
+
+  // private async updateMail(
+  //   mail: string,
+  //   status: boolean = true,
+  // ): Promise<boolean> {
+  //   try {
+  //     await this.mailModel.findOneAndUpdate(
+  //       {},
+  //       { status, mail },
+  //       { upsert: true, new: true },
+  //     );
+  //     return true;
+  //   } catch (err) {
+  //     console.error(`QR status update failed: ${err.message}`);
+  //     return false;
+  //   }
+  // }
+
+  // public async getMail(): Promise<any> {
+  //   return this.mailModel.findOne({});
+  // }
+
+  // public getStatus() {
+  //   return true;
+  // }
 
   /**
    * Remove all HTML tags and occurrences of \r, \n, and \t from a string.
